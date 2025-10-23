@@ -1,15 +1,24 @@
 "use client";
 import React, { useMemo, useState } from 'react';
 import Board from '../components/Board';
+import Commentary from '../components/Commentary';
 import styles from '../components/Board.module.css';
 import type { Player, SquareValue, GameStatus } from '../components/types';
 import { calculateWinner } from '../components/types';
+
+export type Move = {
+  player: Player;
+  position: number;
+  timestamp: Date;
+  moveNumber: number;
+};
 
 export default function HomePage() {
   const [squares, setSquares] = useState<SquareValue[]>(Array(9).fill(null));
   const [currentPlayer, setCurrentPlayer] = useState<Player>('X');
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [winningLine, setWinningLine] = useState<number[] | null>(null);
+  const [moveHistory, setMoveHistory] = useState<Move[]>([]);
 
   const status: GameStatus = useMemo(() => {
     const result = calculateWinner(squares);
@@ -40,6 +49,16 @@ export default function HomePage() {
     const next = squares.slice();
     next[index] = currentPlayer;
     setSquares(next);
+    
+    // Track the move
+    const newMove: Move = {
+      player: currentPlayer,
+      position: index,
+      timestamp: new Date(),
+      moveNumber: moveHistory.length + 1
+    };
+    setMoveHistory(prev => [...prev, newMove]);
+    
     setCurrentPlayer((p) => (p === 'X' ? 'O' : 'X'));
   }
 
@@ -48,6 +67,7 @@ export default function HomePage() {
     setCurrentPlayer('X');
     setIsGameOver(false);
     setWinningLine(null);
+    setMoveHistory([]);
   }
 
   function renderStatusText(s: GameStatus) {
@@ -72,6 +92,11 @@ export default function HomePage() {
                     🔄 New Game
                 </button>
             </div>
+            <Commentary 
+                moves={moveHistory}
+                isGameOver={isGameOver}
+                winner={status.type === 'winner' ? status.player : null}
+            />
         </main>
     );
 }
