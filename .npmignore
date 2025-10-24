@@ -1,0 +1,5 @@
+# Files to ignore when publishing (not typically used for private repositories)
+node_modules/
+dist/
+build/
+.env*

@@ -1,0 +1,122 @@
+openapi: 3.0.3
+info:
+  title: rahul_code Game API
+  version: 1.0.0
+paths:
+  /api/games:
+    post:
+      summary: Create a new game
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GameCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Game'
+    get:
+      summary: List games
+      responses:
+        '200':
+          description: A list of games
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Game'
+  /api/games/{id}:
+    get:
+      summary: Get a single game by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Game details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Game'
+        '404':
+          description: Not found
+
+  /api/games/stats:
+    get:
+      summary: Retrieve aggregated game statistics (wins, losses, draws, totals)
+      responses:
+        '200':
+          description: Aggregated statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+
+components:
+  schemas:
+    Move:
+      type: object
+      properties:
+        player:
+          type: string
+        index:
+          type: integer
+        commentary:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [player, index]
+
+    GameCreate:
+      type: object
+      properties:
+        players:
+          type: array
+          items:
+            type: string
+        moves:
+          type: array
+          items:
+            $ref: '#/components/schemas/Move'
+        result:
+          type: string
+      required: [players]
+
+    Game:
+      allOf:
+        - $ref: '#/components/schemas/GameCreate'
+        - type: object
+          properties:
+            id:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+    Stats:
+      type: object
+      properties:
+        totalGames:
+          type: integer
+        wins:
+          type: object
+          additionalProperties:
+            type: integer
+        draws:
+          type: integer
+        perPlayer:
+          type: object
+          additionalProperties:
+            type: integer
+      required: [totalGames]

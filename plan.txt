@@ -1,0 +1,8 @@
+1./speckit.constitution create contitution for enhancement of the current game with database, test and logging features with backend server
+2./speckit.specify
+3./speckit.clarify
+4./speckit.plan
+5./speckit.tasks
+6./speckit.analyse
+7./speckit.checklist
+8./speckit.implement
