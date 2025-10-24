@@ -1,33 +1,23 @@
 const request = require('supertest');
 const createApp = require('../../src/index');
+const mongoHelper = require('../helpers/mongo');
 
-// Mock Game model for contract tests (provide constructor with prototype.save and static methods)
-jest.mock('../../src/models/game.model', () => {
-  function Game(data) {
-    if (data) Object.assign(this, data);
-  }
-  Game.prototype.save = jest.fn().mockImplementation(function () {
-    if (!this.id) this.id = 'mock-id-1';
-    return Promise.resolve(this);
+describe('Games contract tests (integration)', () => {
+  beforeAll(async () => {
+    await mongoHelper.start();
   });
-  Game.find = jest.fn().mockImplementation(() => Promise.resolve([]));
-  Game.findById = jest.fn().mockImplementation(() => Promise.resolve(null));
-  // Make find chainable (.sort().limit()) to emulate Mongoose query chaining
-  Game.find = jest.fn().mockImplementation(() => ({
-    sort: jest.fn().mockImplementation(() => ({
-      limit: jest.fn().mockResolvedValue([])
-    }))
-  }));
-  return Game;
-});
 
-describe('Games contract tests', () => {
+  afterAll(async () => {
+    await mongoHelper.stop();
+  });
+
   it('POST /api/games creates a game and returns 201 with game object', async () => {
     const app = createApp();
     const payload = { players: ['X', 'O'], moves: [{ player: 'X', index: 0 }] };
     const res = await request(app).post('/api/games').send(payload);
-    expect([201,200]).toContain(res.status);
+    expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('players');
+    expect(Array.isArray(res.body.moves)).toBe(true);
   });
 
   it('GET /api/games returns an array of games', async () => {
@@ -40,6 +30,6 @@ describe('Games contract tests', () => {
   it('GET /api/games/:id returns 404 for unknown id', async () => {
     const app = createApp();
     const res = await request(app).get('/api/games/nonexistent');
-    expect([404,200,500]).toContain(res.status);
+    expect(res.status).toBe(404);
   });
 });

@@ -2,8 +2,13 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
+  grid-auto-rows: 1fr;
   width: 100%;
   max-width: 420px;
+  /* Keep the board square and avoid vertical stretching when placed in a flex row */
+  aspect-ratio: 1 / 1;
+  height: auto;
+  align-self: flex-start;
   margin: 0 auto;
   padding: 20px;
   background: linear-gradient(145deg, #f8fafc, #f1f5f9);

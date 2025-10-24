@@ -1,5 +1,6 @@
 const express = require('express');
 const Game = require('../models/game.model');
+const mongoose = require('mongoose');
 const router = express.Router();
 
 // Create a new game
@@ -44,7 +45,11 @@ router.get('/stats', async (_req, res) => {
 // Get single game
 router.get('/:id', async (req, res) => {
   try {
-    const game = await Game.findById(req.params.id);
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    const game = await Game.findById(id);
     if (!game) return res.status(404).json({ error: 'Not found' });
     res.json(game);
   } catch (err) {

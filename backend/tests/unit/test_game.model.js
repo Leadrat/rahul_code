@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const Game = require('../../../backend/src/models/game.model');
+const Game = require('../../src/models/game.model');
 
 describe('Game model validation', () => {
   it('validates a correct game instance', () => {
