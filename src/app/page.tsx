@@ -1,7 +1,7 @@
 "use client";
 import React, { useMemo, useState } from 'react';
 import Board from '../components/Board';
-import Commentary from '../components/Commentary';
+import Commentary, { generateCommentaryForMove } from '../components/Commentary';
 import GamesPanel from '../components/GamesPanel';
 import { saveGame } from '../utils/indexeddb';
 import styles from '../components/Board.module.css';
@@ -13,6 +13,7 @@ export type Move = {
   position: number;
   timestamp: Date;
   moveNumber: number;
+  commentary?: string;
 };
 
 export default function HomePage() {
@@ -26,6 +27,11 @@ export default function HomePage() {
   const [replayIntervalId, setReplayIntervalId] = useState<number | null>(null);
   const [humanPlayer, setHumanPlayer] = useState<Player>('X');
   const [systemTimerId, setSystemTimerId] = useState<number | null>(null);
+  const [saveName, setSaveName] = useState('');
+  const [refreshSignal, setRefreshSignal] = useState(0);
+  const [autoSavedForMoves, setAutoSavedForMoves] = useState<number | null>(null);
+  const [endSignal, setEndSignal] = useState(0);
+  const [lastResultDelta, setLastResultDelta] = useState<{ wins: number; losses: number; draws: number } | null>(null);
 
   const status: GameStatus = useMemo(() => {
     const result = calculateWinner(squares);
@@ -50,6 +56,27 @@ export default function HomePage() {
       setWinningLine(null);
     }
   }, [status]);
+
+  // Notify child panels when a game ends so they can update stats locally.
+  React.useEffect(() => {
+    if (!isGameOver) return;
+    if (!moveHistory || moveHistory.length === 0) return;
+    // compute result from human player's perspective
+    const delta = { wins: 0, losses: 0, draws: 0 };
+    if ((status.type === 'winner' && status.player === humanPlayer)) {
+      delta.wins = 1;
+    } else if (status.type === 'winner' && status.player !== humanPlayer) {
+      delta.losses = 1;
+    } else if (status.type === 'draw') {
+      delta.draws = 1;
+    }
+    setLastResultDelta(delta);
+    setEndSignal((s) => s + 1);
+  }, [isGameOver]);
+
+  // NOTE: auto-save on game end disabled per UX request.
+  // If auto-save is ever desired in the future, reintroduce logic here with
+  // proper guards for replayMode and duplicate saves.
 
   function handleSquareClick(index: number) {
     // debug: log state to help diagnose input issues
@@ -100,7 +127,7 @@ export default function HomePage() {
     const gameRecord = {
       id: `local-${Date.now()}`,
       players,
-      moves: moveHistory.map((m) => ({ player: m.player, index: m.position, createdAt: m.timestamp.toISOString() })),
+      moves: moveHistory.map((m, idx) => ({ player: m.player, index: m.position, commentary: m.commentary || generateCommentaryForMove(m, idx, moveHistory), createdAt: m.timestamp.toISOString() })),
       createdAt: now,
       updatedAt: now,
     };
@@ -112,7 +139,7 @@ export default function HomePage() {
       // ignore localStorage errors
     }
 
-    // save to IndexedDB (async, fire-and-forget)
+    // save to IndexedDB (async, fire-and-forget) - includes generated commentary so local saves include commentary
     saveGame(gameRecord).catch(() => { /* ignore */ });
   }, [moveHistory]);
 
@@ -228,11 +255,56 @@ export default function HomePage() {
                 highlightLine={winningLine}
               />
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 420 }}>
                 <div className={styles.actions}>
                   <button className={styles.reset} onClick={() => handleReset()} type="button">
                     🔄 New Game
                   </button>
+                </div>
+                <div style={{ marginTop: 8, border: '1px solid rgba(0,0,0,0.08)', padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.02)' }}>
+                  <div style={{ marginBottom: 6 }}><strong>Save current game</strong></div>
+                  <input placeholder="Optional name" value={saveName} onChange={(e) => setSaveName(e.target.value)} style={{ width: '100%', padding: 8, marginBottom: 8, borderRadius: 6, border: '1px solid #ddd' }} />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={async () => {
+                      // manual save (only allowed when game has ended and not during replay)
+                      if (replayMode) return alert('Cannot save during replay');
+                      if (!moveHistory || moveHistory.length === 0) return alert('No moves to save');
+                      if (!isGameOver) return alert('You can only save after the game has ended');
+                      const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
+                      if (!token) return alert('You must be logged in to save games');
+                      const players = Array.from(new Set(moveHistory.map((m) => m.player))).slice(0, 2);
+                      const now = new Date();
+                      const defaultName = `${players.join(' vs ') || 'Game'} — ${now.toLocaleString()}`;
+                      const name = saveName && saveName.trim().length > 0 ? saveName.trim() : defaultName;
+                      // include commentary for each move (use existing commentary if present, otherwise generate)
+                      const payload = {
+                        name,
+                        players,
+                        human_player: humanPlayer,
+                        moves: moveHistory.map((m, idx) => ({ player: m.player, index: m.position, commentary: m.commentary || generateCommentaryForMove(m, idx, moveHistory), createdAt: m.timestamp.toISOString() })),
+                        winner: status.type === 'winner' ? status.player : null,
+                      };
+                      try {
+                        const res = await fetch('http://localhost:4001/api/games', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                          body: JSON.stringify(payload),
+                        });
+                        if (!res.ok) {
+                          const body = await res.json().catch(() => ({}));
+                          throw new Error(body?.message || 'Save failed');
+                        }
+                        setSaveName('');
+                        setRefreshSignal((s) => s + 1);
+                        alert('Saved');
+                      } catch (err: any) {
+                        // eslint-disable-next-line no-console
+                        console.error(err);
+                        alert(err?.message || 'Save failed');
+                      }
+                    }} disabled={!(isGameOver && moveHistory.length > 0)}>Save</button>
+                    <button onClick={() => setRefreshSignal((s) => s + 1)}>Refresh</button>
+                  </div>
                 </div>
                 <div style={{ marginTop: 8 }}>
                   <div style={{ marginBottom: 6 }}><strong>Choose your side</strong></div>
@@ -252,8 +324,10 @@ export default function HomePage() {
                 <div>
                   <button onClick={() => stopReplay()} disabled={!replayMode}>Stop Replay</button>
                 </div>
-                <GamesPanel onLoadReplay={(moves) => startReplay(moves)} currentMoves={moveHistory} />
+                
               </div>
+
+              <GamesPanel onLoadReplay={(moves) => startReplay(moves)} currentMoves={moveHistory} winner={status.type === 'winner' ? status.player : null} humanPlayer={humanPlayer} refreshSignal={refreshSignal} endSignal={endSignal} resultDelta={lastResultDelta} />
             </div>
 
             <Commentary 
