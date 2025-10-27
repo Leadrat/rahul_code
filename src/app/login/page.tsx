@@ -46,21 +46,31 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={{ padding: 20 }}>
-      <div style={{ maxWidth: 460, margin: '0 auto', padding: 20, border: '1px solid #eee', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.04)' }}>
+    <main style={{
+      padding: 20,
+      backgroundImage: "url('https://devimages-cdn.apple.com/wwdc-services/articles/images/3D5F5DD3-14F7-4384-94C0-798D15EE7CD7/2048.jpeg')",
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+  <div style={{ maxWidth: 460, margin: '0 auto', padding: 20, borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.6)', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', color: '#fff' }}>
         <h2 style={{ marginBottom: 8 }}>Welcome back</h2>
         <p style={{ marginBottom: 16, color: '#666' }}>Sign in to continue to Tic Tac Toe</p>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <label style={{ fontSize: 13, color: '#333' }}>Email</label>
-          <input aria-label="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ padding: 10, borderRadius: 6, border: '1px solid #ddd' }} />
-          <label style={{ fontSize: 13, color: '#333' }}>Password</label>
-          <input aria-label="password" placeholder="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ padding: 10, borderRadius: 6, border: '1px solid #ddd' }} />
+          <label style={{ fontSize: 13, color: '#7f7b7bff' }}>Email</label>
+          <input aria-label="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ padding: 10, borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: '#fff' }} />
+          <label style={{ fontSize: 13, color: '#7f7b7bff' }}>Password</label>
+          <input aria-label="password" placeholder="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ padding: 10, borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: '#fff' }} />
 
           {error && <div role="alert" style={{ color: '#b91c1c', background: '#fff1f2', padding: 8, borderRadius: 6 }}>{error}</div>}
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button type="submit" disabled={loading} style={{ padding: '10px 14px', borderRadius: 8, border: 'none', background: '#111827', color: '#fff' }}>{loading ? 'Signing in…' : 'Sign in'}</button>
-            <a href="/register" style={{ marginLeft: 'auto', color: '#2563eb' }}>Create account</a>
+            <a href="/register" style={{ marginLeft: 'auto', color: '#93c5fd' }}>Create account</a>
           </div>
         </form>
       </div>
