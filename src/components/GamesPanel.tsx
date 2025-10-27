@@ -108,11 +108,11 @@ export default function GamesPanel({ onLoadReplay, currentMoves, winner, humanPl
   return (
     <aside style={{ border: '1px solid #ddd', padding: 12, borderRadius: 6, width: 260 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>Saved Games</h3>
+        <h3 style={{ margin: 0, color: "white" }}>Saved Games</h3>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           {stats && (
-            <div style={{ fontSize: 12, color: '#999' }}>
-              Wins: <strong style={{ color: '#10b981' }}>{stats.wins}</strong> &nbsp; Draws: <strong style={{ color: '#f59e0b' }}>{stats.draws}</strong> &nbsp; Losses: <strong style={{ color: '#ef4444' }}>{stats.losses}</strong>
+            <div style={{ fontSize: 12, color: '#cac4c4ff' }}>
+              Wins: <strong style={{ color: '#aff4ddff' }}>{stats.wins}</strong> &nbsp; Draws: <strong style={{ color: '#ebd2a8ff' }}>{stats.draws}</strong> &nbsp; Losses: <strong style={{ color: '#f1a1a1ff' }}>{stats.losses}</strong>
             </div>
           )}
           <button onClick={() => setCollapsed((c) => !c)} aria-label={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▾' : '▴'}</button>

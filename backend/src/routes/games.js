@@ -19,6 +19,23 @@ router.post('/', async (req, res) => {
   }
 });
 
+// POST /api/games/result - record a game result (minimal entry, used to update stats without saving full replay)
+router.post('/result', async (req, res) => {
+  const userId = req.userId;
+  if (!userId) return res.status(401).json({ message: 'unauthorized' });
+  try {
+    const { players, winner, human_player } = req.body || {};
+    // store a minimal game record (empty moves) so stats computed from games include this result
+    const sql = `INSERT INTO games(user_id, name, players, human_player, moves, winner) VALUES($1, $2, $3, $4, $5::jsonb, $6) RETURNING id, name, players, human_player, moves, winner, created_at`;
+    const params = [userId, null, players || null, human_player || null, JSON.stringify([]), winner || null];
+    const result = await query(sql, params);
+    return res.status(201).json({ game: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'internal error' });
+  }
+});
+
 // GET /api/games - list current user's games
 router.get('/', async (req, res) => {
   const userId = req.userId;
