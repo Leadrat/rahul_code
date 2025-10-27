@@ -14,7 +14,7 @@ const positionNames = [
   'bottom-left', 'bottom-center', 'bottom-right'
 ];
 
-const getMoveCommentary = (move: Move, moveIndex: number, allMoves: Move[]): string => {
+export const getMoveCommentary = (move: Move, moveIndex: number, allMoves: Move[]): string => {
   const position = positionNames[move.position];
   const moveNum = moveIndex + 1;
   
@@ -121,7 +121,7 @@ export default function Commentary({ moves, isGameOver, winner }: CommentaryProp
                 </span>
               </div>
               <div className={styles.commentaryText}>
-                {getMoveCommentary(move, index, moves)}
+                {move.commentary ? move.commentary : getMoveCommentary(move, index, moves)}
               </div>
             </div>
           ))
@@ -129,4 +129,9 @@ export default function Commentary({ moves, isGameOver, winner }: CommentaryProp
       </div>
     </div>
   );
+}
+
+// Also export a helper to generate commentary for use when saving games
+export function generateCommentaryForMove(move: Move, index: number, allMoves: Move[]) {
+  return getMoveCommentary(move, index, allMoves);
 }

@@ -1,28 +1,47 @@
 .board {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 16px;
+  grid-auto-rows: 1fr;
   width: 100%;
-  max-width: 420px;
+  max-width: 450px;
+  /* Keep the board square and avoid vertical stretching when placed in a flex row */
+  aspect-ratio: 1 / 1;
+  height: auto;
+  align-self: flex-start;
   margin: 0 auto;
-  padding: 20px;
+  padding: 24px;
   background: linear-gradient(145deg, #f8fafc, #f1f5f9);
-  border-radius: 20px;
+  border-radius: 24px;
   box-shadow: 
-    0 20px 25px -5px rgba(0, 0, 0, 0.1), 
-    0 10px 10px -5px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 20px 25px -5px rgba(0, 0, 0, 0.15), 
+    0 10px 10px -5px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  animation: boardAppear 0.6s ease-out;
+}
+
+@keyframes boardAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 32px;
+  gap: 36px;
   padding: 40px 20px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%);
   position: relative;
+  overflow: hidden;
 }
 
 .container::before {
@@ -33,16 +52,32 @@
   right: 0;
   bottom: 0;
   background: 
-    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+    radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.4) 0%, transparent 60%),
+    radial-gradient(circle at 80% 20%, rgba(244, 114, 182, 0.4) 0%, transparent 60%),
+    radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.25) 0%, transparent 70%);
   pointer-events: none;
+  animation: gradientShift 15s ease infinite alternate;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 100% 100%;
+  }
 }
 
 .status {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+  padding: 12px 24px;
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.5s ease-out;
   text-align: center;
   padding: 16px 32px;
   background: rgba(255, 255, 255, 0.1);
