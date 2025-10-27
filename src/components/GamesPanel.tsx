@@ -75,39 +75,43 @@ export default function GamesPanel({ onLoadReplay, currentMoves }: { onLoadRepla
         <button onClick={() => setCollapsed((c) => !c)} aria-label={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▾' : '▴'}</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-        <input aria-label="save name" placeholder="Optional name for this game" value={saveName} onChange={(e) => setSaveName(e.target.value)} style={{ flex: 1, padding: 6 }} />
-        <button onClick={saveCurrentLocally} disabled={currentMoves.length === 0}>Save Locally</button>
-        <button onClick={refreshLocal}>Refresh</button>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+        <input aria-label="save name" placeholder="Optional name for this game" value={saveName} onChange={(e) => setSaveName(e.target.value)} style={{ flex: 1, padding: 6, minWidth: '100px' }} />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={saveCurrentLocally} disabled={currentMoves.length === 0}>Save</button>
+          <button onClick={refreshLocal}>Refresh</button>
+        </div>
       </div>
 
       {!collapsed && (
         <div style={{ marginTop: 12, maxHeight: 260, overflowY: 'auto' }}>
           <ul style={{ paddingLeft: 16, margin: 0 }}>
-            {games.length === 0 && <li>No saved games</li>}
-            {games.map((g) => (
-              <li key={g.id} style={{ marginTop: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <div style={{ fontWeight: 700 }}>{g.name || g.players?.join(' vs ') || 'Game'}</div>
-                  <div style={{ fontSize: 11, color: '#666' }}>{g.createdAt ? new Date(g.createdAt).toLocaleString() : ''}</div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                  <button onClick={() => handleLoad(g.id)}>Replay</button>
-                  <button onClick={() => setExpanded((ex) => ({ ...ex, [g.id]: !ex[g.id] }))}>{expanded[g.id] ? 'Hide moves' : 'Show moves'}</button>
-                </div>
-                {expanded[g.id] && (
-                  <div style={{ marginTop: 8, paddingLeft: 8 }}>
-                    <ol style={{ margin: 0, paddingLeft: 18 }}>
-                      {(g.moves || []).map((m, i) => (
-                        <li key={i} style={{ fontSize: 13 }}>
-                          {`${i + 1}. ${m.player} @ ${m.index} ${m.createdAt ? '(' + new Date(m.createdAt).toLocaleTimeString() + ')' : ''}`}
-                        </li>
-                      ))}
-                    </ol>
+            {games.filter(g => g.name && g.name.trim() !== '').length === 0 && <li>No saved games with names</li>}
+            {games
+              .filter(g => g.name && g.name.trim() !== '')
+              .map((g) => (
+                <li key={g.id} style={{ marginTop: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <div style={{ fontWeight: 700 }}>{g.name}</div>
+                    <div style={{ fontSize: 11, color: '#666' }}>{g.createdAt ? new Date(g.createdAt).toLocaleString() : ''}</div>
                   </div>
-                )}
-              </li>
-            ))}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                    <button onClick={() => handleLoad(g.id)}>Replay</button>
+                    <button onClick={() => setExpanded((ex) => ({ ...ex, [g.id]: !ex[g.id] }))}>{expanded[g.id] ? 'Hide moves' : 'Show moves'}</button>
+                  </div>
+                  {expanded[g.id] && (
+                    <div style={{ marginTop: 8, paddingLeft: 8 }}>
+                      <ol style={{ margin: 0, paddingLeft: 18 }}>
+                        {(g.moves || []).map((m, i) => (
+                          <li key={i} style={{ fontSize: 13 }}>
+                            {`${i + 1}. ${m.player} @ ${m.index} ${m.createdAt ? '(' + new Date(m.createdAt).toLocaleTimeString() + ')' : ''}`}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                </li>
+              ))}
           </ul>
         </div>
       )}

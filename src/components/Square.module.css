@@ -4,15 +4,15 @@
   justify-content: center;
   width: 100%;
   aspect-ratio: 1 / 1;
-  font-size: 3rem;
+  font-size: 3.5rem;
   font-weight: 800;
   border: 3px solid #d1d5db;
   background: linear-gradient(145deg, #ffffff, #f8fafc);
   color: #1f2937;
   cursor: pointer;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 16px;
+  box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.12), 0 3px 6px -2px rgba(0, 0, 0, 0.08);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
@@ -21,7 +21,30 @@
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   transform: translateZ(0);
+  animation: squareAppear 0.4s ease-out backwards;
 }
+
+@keyframes squareAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateZ(0);
+  }
+}
+
+/* Stagger animation for squares */
+.square:nth-child(1) { animation-delay: 0.1s; }
+.square:nth-child(2) { animation-delay: 0.15s; }
+.square:nth-child(3) { animation-delay: 0.2s; }
+.square:nth-child(4) { animation-delay: 0.25s; }
+.square:nth-child(5) { animation-delay: 0.3s; }
+.square:nth-child(6) { animation-delay: 0.35s; }
+.square:nth-child(7) { animation-delay: 0.4s; }
+.square:nth-child(8) { animation-delay: 0.45s; }
+.square:nth-child(9) { animation-delay: 0.5s; }
 
 .square::before {
   content: '';
@@ -38,8 +61,8 @@
 .square:hover:enabled {
   background: linear-gradient(145deg, #f0f9ff, #e0f2fe);
   border-color: #0ea5e9;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 20px -4px rgba(0, 0, 0, 0.15), 0 6px 10px -3px rgba(0, 0, 0, 0.1);
 }
 
 .square:hover:enabled::before {
@@ -47,8 +70,9 @@
 }
 
 .square:active:enabled {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px) scale(0.98);
+  box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .square:disabled {
@@ -78,10 +102,36 @@
 
 .square.x {
   color: #dc2626;
+  animation: xAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
 }
 
 .square.o {
   color: #2563eb;
+  animation: oAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+@keyframes xAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) rotate(-45deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes oAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 

@@ -1,38 +1,20 @@
-# Backend server for rahul_code (Tic-Tac-Toe enhancements)
+# Backend (Auth)
 
-This is a minimal Express backend that provides endpoints to persist and
-retrieve games. It uses MongoDB (configured via environment variable). The
-implementation follows the project constitution: tests (required), migrations,
-and structured logging are expected.
+This is a small Express backend that connects to a Postgres-compatible database (Neon) and provides registration and login endpoints.
 
-Quick start (local development)
+Environment
+- Create a `.env` file in `backend/` with the values from `.env.example`.
 
-1. Copy environment example and set the connection string (DO NOT commit secrets):
+Scripts
+- Install dependencies: `npm install` (run in `backend/`)
+- Start in dev: `npm run dev`
+- Start: `npm start`
 
-   - On Windows (PowerShell):
+API
+- POST /api/auth/register  { email, password }
+- POST /api/auth/login     { email, password }
 
-     Copy-Item .env.example .env.local
-     # then edit .env.local and set MONGODB_URI
+Security
+- This server returns a JWT on successful login. In production, set a strong `JWT_SECRET` in your environment.
 
-2. Install dependencies (run in `backend/`):
-
-   npm install
-
-3. Start the server:
-
-   npm run dev
-
-Endpoints
-
-- GET /health → { status: 'ok' }
-- GET /api/games → list recent games
-- POST /api/games → create a new game (body: players[], moves[])
-- GET /api/games/:id → get a single game
-
-Notes and next steps
-
-- Do not store credentials in source. Use environment variables or secret
-  manager (e.g., GitHub Actions secrets) for CI.
-- Add tests: contract tests for the API and unit tests for model logic.
-- Add migrations: if schema changes are introduced consider a simple
-  migrations folder with scripts using mongoose to transform data.
+Note: The code will auto-create a `users` table on startup if it doesn't exist.

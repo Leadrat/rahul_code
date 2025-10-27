@@ -52,6 +52,10 @@ export default function HomePage() {
   }, [status]);
 
   function handleSquareClick(index: number) {
+    // debug: log state to help diagnose input issues
+    // (kept lightweight - will remove after verification)
+    // eslint-disable-next-line no-console
+    console.debug('handleSquareClick', { index, currentPlayer, humanPlayer, isGameOver, value: squares[index] });
     if (squares[index] !== null || isGameOver) return;
     const next = squares.slice();
     next[index] = currentPlayer;
@@ -65,6 +69,20 @@ export default function HomePage() {
       moveNumber: moveHistory.length + 1
     };
     setMoveHistory(prev => [...prev, newMove]);
+    
+    // Check if this move results in a win or draw
+    const result = calculateWinner(next);
+    if (result) {
+      setIsGameOver(true);
+      setWinningLine(result.line);
+      return; // End the game immediately when there's a winner
+    }
+    
+    // Check for draw
+    if (next.every(square => square !== null)) {
+      setIsGameOver(true);
+      return; // End the game immediately when it's a draw
+    }
     
     setCurrentPlayer((p) => (p === 'X' ? 'O' : 'X'));
   }
@@ -98,16 +116,25 @@ export default function HomePage() {
     saveGame(gameRecord).catch(() => { /* ignore */ });
   }, [moveHistory]);
 
-  function handleReset() {
+  function handleReset(newHumanPlayer?: Player) {
     setSquares(Array(9).fill(null));
     setCurrentPlayer('X');
     setIsGameOver(false);
     setWinningLine(null);
     setMoveHistory([]);
     stopReplay();
-    if (systemTimerId) {
+    if (systemTimerId != null) {
       window.clearTimeout(systemTimerId);
       setSystemTimerId(null);
+    }
+
+    // If human player is O (consider override), trigger system move as X
+    const human = newHumanPlayer ?? humanPlayer;
+    if (human === 'O') {
+      const tid = window.setTimeout(() => {
+        systemChooseAndPlay();
+      }, 300) as unknown as number;
+      setSystemTimerId(tid);
     }
   }
 
@@ -179,7 +206,7 @@ export default function HomePage() {
         setSystemTimerId(null);
       }
     };
-  }, [currentPlayer, humanPlayer, isGameOver, replayMode]);
+  }, [currentPlayer, humanPlayer, isGameOver, replayMode, squares]);
 
   function renderStatusText(s: GameStatus) {
     if (s.type === 'winner') return `Winner: ${s.player}`;
@@ -203,14 +230,24 @@ export default function HomePage() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div className={styles.actions}>
-                  <button className={styles.reset} onClick={handleReset} type="button">
+                  <button className={styles.reset} onClick={() => handleReset()} type="button">
                     🔄 New Game
                   </button>
                 </div>
                 <div style={{ marginTop: 8 }}>
                   <div style={{ marginBottom: 6 }}><strong>Choose your side</strong></div>
-                  <button onClick={() => { setHumanPlayer('X'); handleReset(); }} disabled={humanPlayer === 'X'}>Play as X</button>
-                  <button onClick={() => { setHumanPlayer('O'); handleReset(); }} disabled={humanPlayer === 'O'} style={{ marginLeft: 8 }}>Play as O</button>
+                  <button onClick={() => { 
+                    // Set player selection - human is X, computer is O
+                    setHumanPlayer('X'); 
+                    // Reset the board and use override so reset logic uses the new selection immediately
+                    handleReset('X');
+                  }}>Play as X</button>
+                  <button onClick={() => { 
+                    // Set player selection - human is O, computer is X
+                    setHumanPlayer('O'); 
+                    // Reset and let handleReset schedule the computer's first move
+                    handleReset('O');
+                  }} style={{ marginLeft: 8 }}>Play as O</button>
                 </div>
                 <div>
                   <button onClick={() => stopReplay()} disabled={!replayMode}>Stop Replay</button>

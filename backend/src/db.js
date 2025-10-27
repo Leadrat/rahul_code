@@ -1,27 +1,25 @@
-const mongoose = require('mongoose');
-const pino = require('pino');
+const { Pool } = require('pg');
+const dotenv = require('dotenv');
+dotenv.config();
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const connectionString = process.env.DATABASE_URL || "postgresql://neondb_owner:npg_QaDL2XEYuId8@ep-jolly-sound-a42vi9ji-pooler.us-east-1.aws.neon.tech/tic_tac_toe?sslmode=require&channel_binding=require";
 
-async function connect(uri) {
-  const mongoUri = uri || process.env.MONGODB_URI;
-  if (!mongoUri) {
-    logger.error('MONGODB_URI not set. Set it in environment or .env.local');
-    throw new Error('Missing MONGODB_URI');
-  }
+const pool = new Pool({ connectionString });
 
-  try {
-    await mongoose.connect(mongoUri, {
-      // options for modern mongoose
-      serverSelectionTimeoutMS: 5000,
-      family: 4
-    });
-    logger.info('Connected to MongoDB');
-    return mongoose.connection;
-  } catch (err) {
-    logger.error({ err }, 'MongoDB connection error');
-    throw err;
-  }
+async function query(text, params) {
+  return pool.query(text, params);
 }
 
-module.exports = { connect, logger };
+async function init() {
+  // Create users table if not exists
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+  `);
+}
+
+module.exports = { pool, query, init };
