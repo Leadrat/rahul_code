@@ -6,6 +6,7 @@ const { query } = require('../db');
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const authMiddleware = require('../middleware/auth');
 
 router.post('/register', async (req, res) => {
   try {
@@ -37,6 +38,23 @@ router.post('/login', async (req, res) => {
     if (!ok) return res.status(401).json({ message: 'invalid credentials' });
     const token = jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
     return res.json({ token, user: { id: user.id, email: user.email } });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'internal error' });
+  }
+});
+
+// GET /api/auth/me - return current user info and whether they're admin
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: 'unauthorized' });
+    const sql = 'SELECT id, email, created_at FROM users WHERE id=$1 LIMIT 1';
+    const result = await query(sql, [userId]);
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ message: 'not found' });
+    const isAdmin = !!(process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL);
+    return res.json({ id: user.id, email: user.email, isAdmin });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'internal error' });

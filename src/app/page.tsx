@@ -5,6 +5,8 @@ import Board from '../components/Board';
 import Commentary, { generateCommentaryForMove } from '../components/Commentary';
 import GamesPanel from '../components/GamesPanel';
 import { saveGame } from '../utils/indexeddb';
+import { useGameSocket } from '../utils/useGameSocket';
+import Notifications from '../components/Notifications';
 import styles from '../components/Board.module.css';
 import type { Player, SquareValue, GameStatus } from '../components/types';
 import { calculateWinner } from '../components/types';
@@ -22,6 +24,7 @@ export default function HomePage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     // attempt to extract email from JWT token stored in localStorage
@@ -41,6 +44,23 @@ export default function HomePage() {
       // ignore
     }
   }, []);
+
+  // verify user info with server to detect admin role
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
+        if (!token) return;
+        const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4001';
+        const res = await fetch(`${backend}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return;
+        const body = await res.json().catch(() => ({}));
+        if (body && body.isAdmin) setIsAdmin(true);
+      } catch (err) {
+        // ignore
+      }
+    })();
+  }, [userEmail]);
 
   function handleLogout() {
     try { localStorage.removeItem('tictactoe:token'); } catch (e) { /* ignore */ }
@@ -63,6 +83,62 @@ export default function HomePage() {
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [winningLine, setWinningLine] = useState<number[] | null>(null);
   const [moveHistory, setMoveHistory] = useState<Move[]>([]);
+  const [invites, setInvites] = useState<any[]>([]);
+  const [currentGameId, setCurrentGameId] = useState<string | null>(null);
+  const [currentGameNextEmail, setCurrentGameNextEmail] = useState<string | null>(null);
+  const socketRef = useGameSocket({
+    onInvite: (invite: any) => {
+      setInvites((s) => [invite, ...s]);
+    },
+    onInviteStatus: (data: any) => {
+      // eslint-disable-next-line no-console
+      console.info('invite status', data);
+    },
+    onPresence: (p: any) => {
+      // eslint-disable-next-line no-console
+      console.info('presence changed', p);
+    },
+    onMove: (payload: any) => {
+      try {
+        const { gameId, state, move, playerEmail } = payload || {};
+        if (!gameId || !state) return;
+        // apply state moves to board
+        const squares = Array(9).fill(null) as SquareValue[];
+        const moves = state.moves || [];
+        moves.forEach((m: any) => {
+          const mv = m.move || m;
+          const pos = mv.position ?? mv.index ?? mv.idx;
+          const sign = mv.sign ?? mv.player ?? mv.playerSign ?? null;
+          if (typeof pos === 'number' && sign) squares[pos] = sign;
+        });
+        setSquares(squares);
+        setMoveHistory(moves.map((m: any, idx: number) => ({ player: m.playerEmail || m.player || (m.move && m.move.player) || 'X', position: (m.move && (m.move.position ?? m.move.index)) ?? m.position ?? 0, timestamp: new Date(), moveNumber: idx + 1 })));
+        // determine next player email if players list present
+        if (state.players && state.players.length === 2) {
+          const last = moves.length ? moves[moves.length - 1] : null;
+          const lastEmail = last && (last.playerEmail || last.player);
+          const next = state.players.find((p: any) => p !== lastEmail) || null;
+          setCurrentGameNextEmail(next);
+        }
+      } catch (e) {
+        // ignore
+      }
+    },
+    onGameState: (state: any) => {
+      // eslint-disable-next-line no-console
+      console.info('game state', state);
+    }
+    ,
+    onGameStarted: (payload: any) => {
+      try {
+        const gid = payload && payload.gameId;
+        if (!gid) return;
+        const sock = socketRef.current;
+        sock?.emit('game:join', { gameId: String(gid) });
+        setCurrentGameId(String(gid));
+      } catch (e) { /* ignore */ }
+    }
+  });
   const [replayMode, setReplayMode] = useState(false);
   const [replayIndex, setReplayIndex] = useState(0);
   const [replayIntervalId, setReplayIntervalId] = useState<number | null>(null);
@@ -147,14 +223,22 @@ export default function HomePage() {
 
   function handleSquareClick(index: number) {
     // debug: log state to help diagnose input issues
-    // (kept lightweight - will remove after verification)
     // eslint-disable-next-line no-console
     console.debug('handleSquareClick', { index, currentPlayer, humanPlayer, isGameOver, value: squares[index] });
     if (squares[index] !== null || isGameOver) return;
+
+    // If connected to a multiplayer game, send move to server via socket
+    const sock = socketRef.current;
+    if (currentGameId && sock && sock.connected && userEmail) {
+      const payload = { gameId: currentGameId, move: { position: index, sign: currentPlayer }, playerEmail: userEmail };
+      sock.emit('move', payload);
+      return; // wait for server to emit move:applied which will update UI
+    }
+
     const next = squares.slice();
     next[index] = currentPlayer;
     setSquares(next);
-    
+
     // Track the move
     const newMove: Move = {
       player: currentPlayer,
@@ -163,7 +247,7 @@ export default function HomePage() {
       moveNumber: moveHistory.length + 1
     };
     setMoveHistory(prev => [...prev, newMove]);
-    
+
     // Check if this move results in a win or draw
     const result = calculateWinner(next);
     if (result) {
@@ -171,13 +255,13 @@ export default function HomePage() {
       setWinningLine(result.line);
       return; // End the game immediately when there's a winner
     }
-    
+
     // Check for draw
     if (next.every(square => square !== null)) {
       setIsGameOver(true);
       return; // End the game immediately when it's a draw
     }
-    
+
     setCurrentPlayer((p) => (p === 'X' ? 'O' : 'X'));
   }
 
@@ -325,9 +409,48 @@ export default function HomePage() {
               <div>
                 <div className={styles.title}>Tic Tac Toe</div>
                 <div className={styles.subtitle}>Classic 3×3 Grid Game</div>
-                <div className={styles.status}>{renderStatusText(status)}</div>
+                <div className={styles.status}>{renderStatusText(status)}{currentGameNextEmail ? ` — Next: ${currentGameNextEmail}` : ''}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {/* top-right fixed controls (notifications + admin) placed just left of avatar */}
+                <div style={{ position: 'fixed', top: 12, right: 64, display: 'flex', gap: 12, alignItems: 'center', zIndex: 60 }}>
+                  <Notifications
+                    invites={invites}
+                    onAccept={async (inv: any) => {
+                    try {
+                      const token = localStorage.getItem('tictactoe:token');
+                      const res = await fetch(`http://localhost:4001/api/invites/${inv.id}/respond`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ response: 'accept' }) });
+                      const body = await res.json().catch(() => ({}));
+                      if (res.ok) {
+                        setInvites((s) => s.filter(i => i.id !== inv.id));
+                        const gid = body && (body.gameId || body.game_id);
+                        if (gid) {
+                          const sock = socketRef.current;
+                          sock?.emit('game:join', { gameId: String(gid) });
+                          setCurrentGameId(String(gid));
+                        }
+                      }
+                    } catch (e) { /* ignore */ }
+                  }}
+                  onDecline={async (inv: any) => {
+                    try {
+                      const token = localStorage.getItem('tictactoe:token');
+                      await fetch(`http://localhost:4001/api/invites/${inv.id}/respond`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ response: 'decline' }) });
+                      setInvites((s) => s.filter(i => i.id !== inv.id));
+                    } catch (e) { }
+                  }}
+                  onSendInvite={async ({ toEmail, message }) => {
+                    const token = localStorage.getItem('tictactoe:token');
+                    const res = await fetch('http://localhost:4001/api/invites', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ toEmail, message }) });
+                    if (!res.ok) throw new Error('invite failed');
+                    const body = await res.json().catch(() => ({}));
+                    // Do not add outgoing invites to the local notifications list — only receivers should see invites
+                  }}
+                  />
+                  {userEmail && isAdmin && (
+                    <a href="/admin"><button style={{ padding: '6px 10px' }}>Admin</button></a>
+                  )}
+                </div>
                 {userEmail ? (
                   <div ref={profileRef} className="profile profile-fixed">
                     <button aria-label="Profile" onClick={() => setProfileOpen((s) => !s)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>
