@@ -123,6 +123,8 @@ export default function HomePage() {
   const [moveHistory, setMoveHistory] = useState<Move[]>([]);
   const [invites, setInvites] = useState<any[]>([]);
   const [currentGameId, setCurrentGameId] = useState<string | null>(null);
+  const [currentGamePlayers, setCurrentGamePlayers] = useState<string[] | null>(null);
+  const currentGamePlayersRef = useRef<string[] | null>(null);
   const [showGameStart, setShowGameStart] = useState(false);
   const [gameStartPayload, setGameStartPayload] = useState<any | null>(null);
   const [currentGameNextEmail, setCurrentGameNextEmail] = useState<string | null>(null);
@@ -142,23 +144,56 @@ export default function HomePage() {
       try {
         const { gameId, state, move, playerEmail } = payload || {};
         if (!gameId || !state) return;
-        // apply state moves to board
-        const squares = Array(9).fill(null) as SquareValue[];
+        // apply moves to board and map players to X/O
+        const squaresArr = Array(9).fill(null) as SquareValue[];
         const moves = state.moves || [];
+        const players = Array.isArray(state.players) ? state.players : [];
+        const signMap: Record<string, Player> = {};
+        if (players.length > 0) {
+          const p0 = players[0] && String(players[0]).toLowerCase();
+          const p1 = players[1] && String(players[1]).toLowerCase();
+          if (p0) signMap[p0] = 'X';
+          if (p1) signMap[p1] = 'O';
+        }
+
         moves.forEach((m: any) => {
           const mv = m.move || m;
           const pos = mv.position ?? mv.index ?? mv.idx;
-          const sign = mv.sign ?? mv.player ?? mv.playerSign ?? null;
-          if (typeof pos === 'number' && sign) squares[pos] = sign;
+          let sign = mv.sign ?? mv.player ?? mv.playerSign ?? null;
+          if (!sign && (m.playerEmail || mv.playerEmail)) {
+            const email = String(m.playerEmail || mv.playerEmail).toLowerCase();
+            sign = signMap[email] || null;
+          }
+          if (typeof pos === 'number' && sign) squaresArr[pos] = sign as any;
         });
-        setSquares(squares);
-        setMoveHistory(moves.map((m: any, idx: number) => ({ player: m.playerEmail || m.player || (m.move && m.move.player) || 'X', position: (m.move && (m.move.position ?? m.move.index)) ?? m.position ?? 0, timestamp: new Date(), moveNumber: idx + 1 })));
-        // determine next player email if players list present
-        if (state.players && state.players.length === 2) {
+
+        setSquares(squaresArr);
+        setMoveHistory(moves.map((m: any, idx: number) => {
+          const email = m.playerEmail || (m.move && m.move.player) || m.player || null;
+          const emailNorm = email ? String(email).toLowerCase() : null;
+          const playerSign = emailNorm && signMap[emailNorm] ? signMap[emailNorm] : (m.player || (m.move && m.move.player) || 'X');
+          return { player: playerSign as Player, position: (m.move && (m.move.position ?? m.move.index)) ?? m.position ?? 0, timestamp: new Date(m.createdAt || m.at || Date.now()), moveNumber: idx + 1 };
+        }));
+
+        // populate players if present
+        if (players && Array.isArray(players) && players.length > 0) {
+          const normalizedPlayers = players.map((p: any) => p && String(p).toLowerCase());
+          setCurrentGamePlayers(normalizedPlayers);
+          currentGamePlayersRef.current = normalizedPlayers;
           const last = moves.length ? moves[moves.length - 1] : null;
           const lastEmail = last && (last.playerEmail || last.player);
-          const next = state.players.find((p: any) => p !== lastEmail) || null;
+          const next = players.find((p: any) => p !== lastEmail) || null;
           setCurrentGameNextEmail(next);
+          // set currentPlayer to next sign based on moves count
+          const nextSign: Player = moves.length % 2 === 0 ? 'X' : 'O';
+          setCurrentPlayer(nextSign);
+          // set humanPlayer if current user is one of the players
+          const me = userEmailRef.current;
+          if (me) {
+            const myIndex = normalizedPlayers.indexOf(me);
+            if (myIndex === 0) setHumanPlayer('X');
+            else if (myIndex === 1) setHumanPlayer('O');
+          }
         }
       } catch (e) {
         // ignore
@@ -362,8 +397,9 @@ export default function HomePage() {
     }
 
     // If human player is O (consider override), trigger system move as X
+    // but skip auto-play when connected to a shared multiplayer game
     const human = newHumanPlayer ?? humanPlayer;
-    if (human === 'O') {
+    if (human === 'O' && !currentGameId) {
       const tid = window.setTimeout(() => {
         systemChooseAndPlay();
       }, 300) as unknown as number;
@@ -429,6 +465,9 @@ export default function HomePage() {
   React.useEffect(() => {
     if (replayMode) return;
     if (isGameOver) return;
+    // disable system auto-play when playing a shared (multiplayer) game
+    if (currentGameId) return;
+
     if (currentPlayer !== humanPlayer) {
       // schedule system move
       // clear any existing timer
