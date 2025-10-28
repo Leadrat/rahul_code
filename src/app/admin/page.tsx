@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
 
 interface GameType {
@@ -27,6 +28,7 @@ interface UserType {
 }
 
 export default function AdminPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('tictactoe:adminToken') : null);
@@ -35,9 +37,13 @@ export default function AdminPage() {
   const [games, setGames] = useState<GameType[] | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [selectedUserGames, setSelectedUserGames] = useState<any[] | null>(null);
-  const [selectedReplay, setSelectedReplay] = useState<any | null>(null);
   const [replayIndex, setReplayIndex] = useState(0);
-  const [isReplaying, setIsReplaying] = useState(false);
+  // inline replay state (show replay directly below clicked row)
+  const [inlineReplayId, setInlineReplayId] = useState<string | null>(null);
+  const [inlineReplaySquares, setInlineReplaySquares] = useState<Array<string | null>>(Array(9).fill(null));
+  const [inlineReplayMoves, setInlineReplayMoves] = useState<any[] | null>(null);
+  const [inlineReplayIndex, setInlineReplayIndex] = useState(0);
+  const [inlineReplayTimerId, setInlineReplayTimerId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function login(e?: React.FormEvent) {
@@ -118,14 +124,74 @@ export default function AdminPage() {
       const res = await fetch(`${backend}/api/admin/games/${gameId}`, { headers: { Authorization: `Bearer ${authToken}` } });
       if (!res.ok) throw new Error('failed to fetch game');
       const body = await res.json();
-      setSelectedReplay(body.game || null);
+      const g = body.game || null;
       setReplayIndex(0);
+      if (g) {
+        // Map stored players (emails) to X/O for replay display
+        const playersList: string[] = Array.isArray(g.players) ? g.players.map((p: any) => p && String(p).toLowerCase()) : [];
+        const signMap: Record<string, string> = {};
+        if (playersList.length > 0) {
+          if (playersList[0]) signMap[playersList[0]] = 'X';
+          if (playersList[1]) signMap[playersList[1]] = 'O';
+        }
+        const moves = (g.moves || []).map((m: any, idx: number) => {
+          const rawPlayer = m.player || m.playerEmail || null;
+          let playerSign: string;
+          if (rawPlayer) {
+            const rp = String(rawPlayer).toLowerCase();
+            if (signMap[rp]) playerSign = signMap[rp];
+            else if (String(rawPlayer) === 'X' || String(rawPlayer) === 'O') playerSign = String(rawPlayer);
+            else playerSign = idx % 2 === 0 ? 'X' : 'O'; // fallback by parity
+          } else {
+            playerSign = idx % 2 === 0 ? 'X' : 'O';
+          }
+          return { player: playerSign, index: m.index, commentary: m.commentary, timestamp: new Date(m.createdAt || Date.now()), moveNumber: idx + 1 };
+        });
+        startInlineReplay(String(g.id), moves);
+      }
     } catch (err) {
       console.error(err);
       alert('Failed to fetch game');
     } finally {
       setLoading(false);
     }
+  }
+
+  function clearInlineReplay() {
+    if (inlineReplayTimerId) {
+      window.clearInterval(inlineReplayTimerId as unknown as number);
+      setInlineReplayTimerId(null);
+    }
+    setInlineReplayId(null);
+    setInlineReplayMoves(null);
+    setInlineReplayIndex(0);
+    setInlineReplaySquares(Array(9).fill(null));
+  }
+
+  function startInlineReplay(id: string, moves: any[], speed = 700) {
+    // stop existing
+    clearInlineReplay();
+    setInlineReplayId(String(id));
+    setInlineReplayMoves(moves);
+    setInlineReplaySquares(Array(9).fill(null));
+    setInlineReplayIndex(0);
+    let idx = 0;
+    const tid = window.setInterval(() => {
+      if (idx >= moves.length) {
+        window.clearInterval(tid);
+        setInlineReplayTimerId(null);
+        return;
+      }
+      const m = moves[idx];
+      setInlineReplaySquares((prev) => {
+        const next = prev.slice();
+        next[m.index] = m.player;
+        return next;
+      });
+      idx += 1;
+      setInlineReplayIndex(idx);
+    }, speed) as unknown as number;
+    setInlineReplayTimerId(tid);
   }
 
   async function deleteGame(gameId: string) {
@@ -149,24 +215,7 @@ export default function AdminPage() {
     }
   }
 
-  // simple replay: step through moves (if moves are stored in game.moves)
-  useEffect(() => {
-    let timer: any = null;
-    if (isReplaying && selectedReplay && Array.isArray(selectedReplay.moves)) {
-      timer = setInterval(() => {
-        setReplayIndex((i) => {
-          const next = i + 1;
-          if (next >= selectedReplay.moves.length) {
-            setIsReplaying(false);
-            clearInterval(timer);
-            return selectedReplay.moves.length - 1;
-          }
-          return next;
-        });
-      }, 700);
-    }
-    return () => { if (timer) clearInterval(timer); };
-  }, [isReplaying, selectedReplay]);
+  // (inline replay handled separately via startInlineReplay/clearInlineReplay)
 
   useEffect(() => {
     // If we don't have an admin token saved but the user is logged in, check if that user is the admin
@@ -233,7 +282,7 @@ export default function AdminPage() {
 
       {token && (
         <div>
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div className={styles.actionRow} style={{ marginBottom: '1.5rem' }}>
             <button 
               className={styles.button}
               onClick={() => { 
@@ -244,12 +293,23 @@ export default function AdminPage() {
             >
               Logout
             </button>
+            <button
+              className={styles.buttonSecondary}
+              onClick={() => router.push('/')}
+            >
+              Home
+            </button>
             <button 
               className={styles.buttonSecondary} 
               onClick={() => fetchData()}
             >
               Refresh Data
             </button>
+            <div style={{ flex: 1 }} />
+            <div className={styles.notificationNote} title="Invite friends to play via notifications">
+              <span>🔔</span>
+              <span>Invite friends to play on notification click</span>
+            </div>
           </div>
 
           <div className={styles.grid}>
@@ -307,7 +367,7 @@ export default function AdminPage() {
                 <div className={styles.cardTitle}>
                   <h2>Saved Games for {selectedUser.email}</h2>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <button className={styles.buttonSecondary} onClick={() => { setSelectedUser(null); setSelectedUserGames(null); setSelectedReplay(null); }}>Close</button>
+                    <button className={styles.buttonSecondary} onClick={() => { setSelectedUser(null); setSelectedUserGames(null); clearInlineReplay(); }}>Close</button>
                     <span>{selectedUserGames?.length || 0} saved</span>
                   </div>
                 </div>
@@ -328,42 +388,52 @@ export default function AdminPage() {
                     </thead>
                     <tbody>
                       {selectedUserGames.map(g => (
-                        <tr key={g.id}>
-                          <td>{formatDate(g.created_at)}</td>
-                          <td style={{ color: '#000' }}>{g.name || '—'}</td>
-                          <td style={{ color: '#000' }}>{Array.isArray(g.players) ? g.players.join(' vs ') : (g.players || '')}</td>
-                          <td style={{ color: '#000' }}>{g.winner ? <strong>{g.winner}</strong> : '—'}</td>
-                          <td>
-                            <button className={styles.button} onClick={() => fetchGameById(String(g.id))} style={{ marginRight: 8 }}>View / Replay</button>
-                            <button className={styles.buttonSecondary} onClick={() => deleteGame(String(g.id))}>Delete</button>
-                          </td>
-                        </tr>
+                        <React.Fragment key={g.id}>
+                          <tr>
+                            <td>{formatDate(g.created_at)}</td>
+                            <td style={{ color: '#000' }}>{g.name || '—'}</td>
+                            <td style={{ color: '#000' }}>{Array.isArray(g.players) ? g.players.join(' vs ') : (g.players || '')}</td>
+                            <td style={{ color: '#000' }}>{g.winner ? <strong>{g.winner}</strong> : '—'}</td>
+                            <td>
+                              <button className={styles.button} onClick={() => fetchGameById(String(g.id))} style={{ marginRight: 8 }}>View</button>
+                              <button className={styles.buttonSecondary} onClick={() => deleteGame(String(g.id))}>Delete</button>
+                            </td>
+                          </tr>
+                          {inlineReplayId === String(g.id) && (
+                            <tr key={String(g.id) + '-replay'}>
+                              <td colSpan={5}>
+                                <div className={styles.replayContainer}>
+                                  <div className={styles.replayBoardWrapper}>
+                                    <div className={styles.replayBoard}>
+                                      {inlineReplaySquares.map((s, i) => (
+                                        <div key={i} className={styles.replaySquare}>{s || ''}</div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div className={styles.replayInfo}>
+                                    <div className={styles.replayMoveHeader}>Move {inlineReplayIndex} / {inlineReplayMoves ? inlineReplayMoves.length : 0}</div>
+                                    <ol className={styles.replayMoveList}>
+                                      {(inlineReplayMoves ? inlineReplayMoves.slice(0, inlineReplayIndex) : []).map((m: any, i: number) => (
+                                        <li key={i}>{m.player} → {String(m.index)}{m.commentary ? ' - ' + m.commentary : ''}</li>
+                                      ))}
+                                    </ol>
+                                    <div className={styles.replayControls}>
+                                      <button className={styles.button} onClick={() => { if (inlineReplayTimerId) { window.clearInterval(inlineReplayTimerId as unknown as number); setInlineReplayTimerId(null); } else if (inlineReplayMoves) { startInlineReplay(inlineReplayId as string, inlineReplayMoves); } }}>{inlineReplayTimerId ? 'Pause' : 'Play'}</button>
+                                      <button className={styles.buttonSecondary} onClick={() => clearInlineReplay()}>Stop</button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>
                 )}
               </div>
 
-              {/* Replay viewer */}
-              {selectedReplay && (
-                <div className={styles.card} style={{ marginTop: 12 }}>
-                  <div className={styles.cardTitle}>
-                    <h3>Replay: {selectedReplay.id}</h3>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button className={styles.button} onClick={() => setIsReplaying(v => !v)}>{isReplaying ? 'Pause' : 'Play'}</button>
-                      <button className={styles.buttonSecondary} onClick={() => { setSelectedReplay(null); setReplayIndex(0); setIsReplaying(false); }}>Close</button>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ marginBottom: 8 }}>Move {replayIndex + 1} / {Array.isArray(selectedReplay.moves) ? selectedReplay.moves.length : 0}</div>
-                    <ol>
-                      {(Array.isArray(selectedReplay.moves) ? selectedReplay.moves.slice(0, replayIndex + 1) : []).map((m: any, i: number) => (
-                          <li key={i}>{m.player} → {String(m.index)}{m.commentary ? ' - ' + m.commentary : ''}</li>
-                        ))}
-                    </ol>
-                  </div>
-                </div>
-              )}
+              {/* inline replay shown directly below the clicked row */}
             </div>
           )}
         </div>

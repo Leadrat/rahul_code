@@ -484,6 +484,7 @@ export default function HomePage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 {/* top-right fixed controls (notifications + admin) placed just left of avatar */}
                 <div style={{ position: 'fixed', top: 12, right: 64, display: 'flex', gap: 12, alignItems: 'center', zIndex: 60 }}>
+                  <div className={styles.notifNote} title="Invite friends to play via notifications">🔔 Invite friends to play on notification click</div>
                   <Notifications
                     invites={invites}
                     onAccept={async (inv: any) => {
@@ -655,17 +656,40 @@ export default function HomePage() {
                       if (!isGameOver) return alert('You can only save after the game has ended');
                       const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
                       if (!token) return alert('You must be logged in to save games');
-                      const players = Array.from(new Set(moveHistory.map((m) => m.player))).slice(0, 2);
+                      // For shared games prefer server-side player emails when available
+                      const players = (currentGamePlayersRef.current && currentGamePlayersRef.current.length > 0)
+                        ? currentGamePlayersRef.current.slice(0, 2)
+                        : Array.from(new Set(moveHistory.map((m) => m.player))).slice(0, 2);
                       const now = new Date();
                       const defaultName = `${players.join(' vs ') || 'Game'} — ${now.toLocaleString()}`;
                       const name = saveName && saveName.trim().length > 0 ? saveName.trim() : defaultName;
                       // include commentary for each move (use existing commentary if present, otherwise generate)
+                      // If this is a shared game, map move players and winner from X/O to email addresses
+                      const signMap: Record<string, string> = {};
+                      if (players && players.length > 0) {
+                        if (players[0]) signMap['X'] = players[0];
+                        if (players[1]) signMap['O'] = players[1];
+                      }
+
+                      const movesPayload = moveHistory.map((m, idx) => {
+                        // prefer mapping sign to email when available
+                        const rawPlayer = m.player;
+                        const mappedPlayer = (rawPlayer && signMap[rawPlayer]) ? signMap[rawPlayer] : rawPlayer;
+                        return { player: mappedPlayer, index: m.position, commentary: m.commentary || generateCommentaryForMove(m, idx, moveHistory), createdAt: m.timestamp.toISOString() };
+                      });
+
+                      let winnerVal: any = null;
+                      if (status.type === 'winner') {
+                        const rawWinner = status.player;
+                        winnerVal = (rawWinner && signMap[rawWinner]) ? signMap[rawWinner] : rawWinner;
+                      }
+
                       const payload = {
                         name,
                         players,
                         human_player: humanPlayer,
-                        moves: moveHistory.map((m, idx) => ({ player: m.player, index: m.position, commentary: m.commentary || generateCommentaryForMove(m, idx, moveHistory), createdAt: m.timestamp.toISOString() })),
-                        winner: status.type === 'winner' ? status.player : null,
+                        moves: movesPayload,
+                        winner: winnerVal,
                       };
                       try {
                         const res = await fetch('http://localhost:4001/api/games', {

@@ -169,5 +169,19 @@
   animation: fadeInUp 0.8s ease-out 0.2s both;
 }
 
+/* Notification hint near top-right controls */
+.notifNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.95);
+  font-size: 0.95rem;
+  border: 1px solid rgba(255,255,255,0.06);
+  backdrop-filter: blur(6px);
+}
+
 
 
