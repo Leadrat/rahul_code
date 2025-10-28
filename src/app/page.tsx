@@ -22,6 +22,7 @@ export type Move = {
 export default function HomePage() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const userEmailRef = useRef<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -44,6 +45,43 @@ export default function HomePage() {
       // ignore
     }
   }, []);
+
+  // keep a ref of userEmail for socket callbacks (avoids stale closures)
+  useEffect(() => { userEmailRef.current = userEmail ? String(userEmail).toLowerCase() : null; }, [userEmail]);
+
+  // load game state from backend and apply to UI (used when a game is created in DB)
+  async function loadGameFromServer(gameId: string | null) {
+    try {
+      if (!gameId) return;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
+      const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4001';
+      const res = await fetch(`${backend}/api/games/${encodeURIComponent(String(gameId))}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) return;
+      const body = await res.json().catch(() => null);
+      const state = body && (body.game || body.state || body);
+      if (!state) return;
+      // apply moves to board
+      const squaresArr = Array(9).fill(null) as SquareValue[];
+      const moves = state.moves || [];
+      moves.forEach((m: any) => {
+        const mv = m.move || m;
+        const pos = mv.position ?? mv.index ?? mv.idx;
+        const sign = mv.sign ?? mv.player ?? mv.playerSign ?? null;
+        if (typeof pos === 'number' && sign) squaresArr[pos] = sign;
+      });
+      setSquares(squaresArr);
+      setMoveHistory(moves.map((m: any, idx: number) => ({ player: m.playerEmail || m.player || (m.move && m.move.player) || 'X', position: (m.move && (m.move.position ?? m.move.index)) ?? m.position ?? 0, timestamp: new Date(m.createdAt || m.at || Date.now()), moveNumber: idx + 1 })));
+      // populate players if present
+      if (state.players && Array.isArray(state.players) && state.players.length > 0) {
+        const last = moves.length ? moves[moves.length - 1] : null;
+        const lastEmail = last && (last.playerEmail || last.player);
+        const next = state.players.find((p: any) => p !== lastEmail) || null;
+        setCurrentGameNextEmail(next);
+      }
+    } catch (e) {
+      // ignore load errors
+    }
+  }
 
   // verify user info with server to detect admin role
   useEffect(() => {
@@ -85,6 +123,8 @@ export default function HomePage() {
   const [moveHistory, setMoveHistory] = useState<Move[]>([]);
   const [invites, setInvites] = useState<any[]>([]);
   const [currentGameId, setCurrentGameId] = useState<string | null>(null);
+  const [showGameStart, setShowGameStart] = useState(false);
+  const [gameStartPayload, setGameStartPayload] = useState<any | null>(null);
   const [currentGameNextEmail, setCurrentGameNextEmail] = useState<string | null>(null);
   const socketRef = useGameSocket({
     onInvite: (invite: any) => {
@@ -133,9 +173,22 @@ export default function HomePage() {
       try {
         const gid = payload && payload.gameId;
         if (!gid) return;
-        const sock = socketRef.current;
-        sock?.emit('game:join', { gameId: String(gid) });
-        setCurrentGameId(String(gid));
+        const starter = payload && payload.startedBy && String(payload.startedBy).toLowerCase();
+        const me = userEmailRef.current;
+        // if I am the one who started the game (starter), auto-join. Otherwise show popup and let sender click Start.
+        if (starter && me && starter === me) {
+          const sock = socketRef.current;
+          sock?.emit('game:join', { gameId: String(gid) });
+          setCurrentGameId(String(gid));
+          // load authoritative state from server DB if available
+          loadGameFromServer(String(gid));
+          setGameStartPayload(payload);
+          setShowGameStart(true);
+        } else {
+          // show popup to prompt the other participant (sender) to start/join
+          setGameStartPayload(payload);
+          setShowGameStart(true);
+        }
       } catch (e) { /* ignore */ }
     }
   });
@@ -428,6 +481,12 @@ export default function HomePage() {
                           const sock = socketRef.current;
                           sock?.emit('game:join', { gameId: String(gid) });
                           setCurrentGameId(String(gid));
+                          // load authoritative state from DB
+                          loadGameFromServer(String(gid));
+                        } else if (body && body.gameCreated === false && body.players) {
+                          // couldn't auto-create; show the same game-start popup so the recipient or other player can start the game
+                          setGameStartPayload({ inviteId: inv.id, players: body.players, startedBy: body.from_user_email || null });
+                          setShowGameStart(true);
                         }
                       }
                     } catch (e) { /* ignore */ }
@@ -447,6 +506,85 @@ export default function HomePage() {
                     // Do not add outgoing invites to the local notifications list — only receivers should see invites
                   }}
                   />
+                  {/* Game started popup */}
+                  {showGameStart && gameStartPayload && (() => {
+                    const starter = gameStartPayload.startedBy && String(gameStartPayload.startedBy).toLowerCase();
+                    const me = userEmailRef.current;
+                    const isStarter = starter && me && starter === me;
+                    return (
+                      <div style={{ position: 'absolute', top: 56, right: 0, width: 320, background: 'var(--card-bg, #0b0b0b)', border: '1px solid rgba(255,255,255,0.06)', padding: 12, borderRadius: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <strong>Game started</strong>
+                            <div style={{ fontSize: 13, color: 'var(--muted)' }}>{(gameStartPayload.players || []).join(' vs ')}</div>
+                          </div>
+                          <div>
+                            <button onClick={() => setShowGameStart(false)} style={{ padding: '4px 8px' }}>Close</button>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                          {isStarter ? (
+                            <button onClick={async () => {
+                              const sock = socketRef.current;
+                              let gid = gameStartPayload.gameId;
+                              const players = gameStartPayload.players || [];
+                              // if a game wasn't created yet, try to create it via the invites start endpoint
+                              if (!gid && gameStartPayload && gameStartPayload.inviteId) {
+                                try {
+                                  const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
+                                  const res = await fetch(`http://localhost:4001/api/invites/${gameStartPayload.inviteId}/start`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
+                                  const body = await res.json().catch(() => ({}));
+                                  if (res.ok && body && (body.gameId || body.id)) {
+                                    gid = body.gameId || body.id;
+                                  }
+                                } catch (e) { /* ignore start failure */ }
+                              }
+                              if (!gid) {
+                                // can't proceed without a game id
+                                alert('Failed to start game. Please try again.');
+                                return;
+                              }
+                              // join room locally
+                              sock?.emit('game:join', { gameId: String(gid) });
+                              // load authoritative state from DB
+                              loadGameFromServer(String(gid));
+                              // notify server that we've opened the game UI so other players get prompted to join
+                              sock?.emit('game:open', { gameId: String(gid), players });
+                              setCurrentGameId(String(gid));
+                              setShowGameStart(false);
+                              // update URL so the game view is reflected in the address bar
+                              try { router.push(`/?game=${encodeURIComponent(String(gid))}`); } catch (e) { /* ignore */ }
+                            }} style={{ padding: '6px 10px' }}>Open Game</button>
+                          ) : (
+                            <button onClick={async () => {
+                              const sock = socketRef.current;
+                              let gid = gameStartPayload.gameId;
+                              // if no gid but inviteId exists, try to start the game via API (sender allowed)
+                              if (!gid && gameStartPayload && gameStartPayload.inviteId) {
+                                try {
+                                  const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
+                                  const res = await fetch(`http://localhost:4001/api/invites/${gameStartPayload.inviteId}/start`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
+                                  const body = await res.json().catch(() => ({}));
+                                  if (res.ok && body && (body.gameId || body.id)) {
+                                    gid = body.gameId || body.id;
+                                  }
+                                } catch (e) { /* ignore */ }
+                              }
+                              if (!gid) {
+                                alert('Failed to join game. Please try again.');
+                                return;
+                              }
+                              sock?.emit('game:join', { gameId: String(gid) });
+                              // load authoritative state from DB
+                              loadGameFromServer(String(gid));
+                              setCurrentGameId(String(gid));
+                              setShowGameStart(false);
+                            }} style={{ padding: '6px 10px' }}>Start</button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {userEmail && isAdmin && (
                     <a href="/admin"><button style={{ padding: '6px 10px' }}>Admin</button></a>
                   )}

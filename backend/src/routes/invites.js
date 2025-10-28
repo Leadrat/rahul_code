@@ -80,12 +80,17 @@ router.post('/:id/start', async (req, res) => {
     const invRes = await query('SELECT id, from_user_id, to_email, status FROM invites WHERE id=$1 LIMIT 1', [inviteId]);
     const inv = invRes.rows[0];
     if (!inv) return res.status(404).json({ message: 'invite not found' });
-    if (inv.from_user_id !== userId) return res.status(403).json({ message: 'not sender' });
+    // allow either the original sender OR the recipient (by email) to start the game
+    const requesterRes = await query('SELECT email FROM users WHERE id=$1 LIMIT 1', [userId]);
+    const requesterEmail = requesterRes.rows[0] && requesterRes.rows[0].email;
+    const isSender = inv.from_user_id === userId;
+    const isRecipient = requesterEmail && String(requesterEmail) === String(inv.to_email);
+    if (!isSender && !isRecipient) return res.status(403).json({ message: 'not authorized to start this invite' });
     if (inv.status !== 'accepted') return res.status(400).json({ message: 'invite not accepted' });
 
     // get sender email
-    const sres = await query('SELECT email FROM users WHERE id=$1 LIMIT 1', [userId]);
-    const senderEmail = sres.rows[0] && sres.rows[0].email;
+  const sres = await query('SELECT email FROM users WHERE id=$1 LIMIT 1', [inv.from_user_id]);
+  const senderEmail = sres.rows[0] && sres.rows[0].email;
 
     // create a minimal game record with both players
     const players = [senderEmail, inv.to_email];
@@ -98,7 +103,9 @@ router.post('/:id/start', async (req, res) => {
     const notifier = req.app && req.app.get && req.app.get('notifier');
     if (notifier && typeof notifier.startGame === 'function') {
       try {
-        await notifier.startGame({ gameId: game.id, players });
+        // preserve who initiated the start (either sender or recipient)
+        const startedBy = requesterEmail || senderEmail;
+        await notifier.startGame({ gameId: game.id, players, startedBy });
       } catch (err) {
         console.warn('notifier.startGame failed', err && err.message);
       }
@@ -150,20 +157,33 @@ router.post('/:id/respond', async (req, res) => {
         const sres = await query('SELECT email FROM users WHERE id=$1 LIMIT 1', [invite.from_user_id]);
         const senderEmail = sres.rows[0] && sres.rows[0].email;
         const players = [senderEmail, invite.to_email];
-        const sql = `INSERT INTO games(user_id, name, players, human_player, moves, winner) VALUES($1, $2, $3, $4, $5::jsonb, $6) RETURNING id`;
-        const params = [invite.from_user_id, null, players, null, JSON.stringify([]), null];
-        const gres = await query(sql, params);
-        const game = gres.rows[0];
 
-        if (notifier && typeof notifier.startGame === 'function') {
-          try {
-            await notifier.startGame({ gameId: game.id, players });
-          } catch (err) {
-            console.warn('notifier.startGame failed', err && err.message);
+        // check presence for both sender and receiver before auto-starting
+        const pres = req.app && req.app.get && req.app.get('presence');
+        const senderKey = senderEmail && String(senderEmail).toLowerCase();
+        const receiverKey = invite.to_email && String(invite.to_email).toLowerCase();
+        const senderOnline = !!(pres && senderKey && pres[senderKey] && pres[senderKey].size > 0);
+        const receiverOnline = !!(pres && receiverKey && pres[receiverKey] && pres[receiverKey].size > 0);
+
+        if (senderOnline && receiverOnline) {
+          const sql = `INSERT INTO games(user_id, name, players, human_player, moves, winner) VALUES($1, $2, $3, $4, $5::jsonb, $6) RETURNING id`;
+          const params = [invite.from_user_id, null, players, null, JSON.stringify([]), null];
+          const gres = await query(sql, params);
+          const game = gres.rows[0];
+
+          if (notifier && typeof notifier.startGame === 'function') {
+            try {
+              await notifier.startGame({ gameId: game.id, players, startedBy: invite.to_email });
+            } catch (err) {
+              console.warn('notifier.startGame failed', err && err.message);
+            }
           }
+
+          return res.json({ id: inviteId, status: newStatus, gameId: game.id });
         }
 
-        return res.json({ id: inviteId, status: newStatus, gameId: game.id });
+        // accepted but couldn't auto-start because one or both are offline
+        return res.json({ id: inviteId, status: newStatus, gameCreated: false, reason: 'both players must be online to auto-start', players, from_user_email: senderEmail });
       } catch (err) {
         console.warn('failed to create game on accept', err && err.message);
         return res.json({ id: inviteId, status: newStatus });

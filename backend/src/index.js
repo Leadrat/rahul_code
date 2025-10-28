@@ -31,6 +31,8 @@ const presence = {};
 
 // simple in-memory game rooms store (MVP) keyed by gameId
 const games = {};
+// pending start notifications for games: gameId -> payload
+const pendingStartNotifications = {};
 
 // create HTTP server and socket.io
 const server = http.createServer(app);
@@ -114,11 +116,27 @@ const notifier = {
     }
   },
   // notify both players that a game was started (from an accepted invite)
-  async startGame({ gameId, players }) {
+  async startGame({ gameId, players, startedBy }) {
     try {
       const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-      const payload = { gameId, players, url: `${clientUrl}/game/${gameId}` };
+      const payload = { gameId, players, startedBy, url: `${clientUrl}/game/${gameId}` };
+      // persist pending start so that if clients need an explicit "please-start"
+      // notification after the starter/receiver finishes loading the game UI,
+      // we can emit it to the other player(s).
+      try {
+        pendingStartNotifications[String(gameId)] = payload;
+        // auto-expire after 2 minutes to avoid unbounded memory growth
+        setTimeout(() => { try { delete pendingStartNotifications[String(gameId)]; } catch (e) { /* ignore */ } }, 2 * 60 * 1000);
+      } catch (e) { /* ignore persistence failure in-memory */ }
       if (!Array.isArray(players)) players = [];
+      // ensure in-memory games store includes this game's metadata (players)
+      try {
+        games[String(gameId)] = games[String(gameId)] || { id: gameId, moves: [], status: 'active', players: Array.isArray(players) ? players : [] };
+        // if players were not set previously, populate them
+        if ((!games[String(gameId)].players || games[String(gameId)].players.length === 0) && Array.isArray(players) && players.length > 0) {
+          games[String(gameId)].players = players;
+        }
+      } catch (e) { /* ignore in-memory write errors */ }
       // for each player email, emit to connected sockets if any, otherwise send email
       for (let p of players) {
         if (!p) continue;
@@ -178,6 +196,42 @@ io.on('connection', socket => {
     // send current state if exists
     if (games[gameId]) {
       socket.emit('game:state', games[gameId]);
+    }
+  });
+
+  // receiver/client opened the game UI and requests the other player to start/join
+  socket.on('game:open', (payload) => {
+    try {
+      let { gameId, players } = payload || {};
+      const requester = socket.email && String(socket.email).toLowerCase();
+      // if players not provided by client, try to load from pendingStartNotifications or in-memory games
+      if (!players || !Array.isArray(players) || players.length === 0) {
+        const pending = pendingStartNotifications[String(gameId)];
+        if (pending && Array.isArray(pending.players)) {
+          players = pending.players;
+        } else if (games[gameId] && Array.isArray(games[gameId].players)) {
+          players = games[gameId].players;
+        }
+      }
+      if (!gameId || !players || !Array.isArray(players)) return;
+      // notify all other players (except requester) to start/join. Prefer using
+      // the persisted startedBy if available so receivers/senders see correct starter info.
+      const pending = pendingStartNotifications[String(gameId)];
+      const startedBy = pending && pending.startedBy ? pending.startedBy : requester;
+      const payloadOut = { gameId, players, requestedBy: requester, startedBy };
+      players.forEach(p => {
+        if (!p) return;
+        const key = String(p).toLowerCase();
+        if (key === requester) return;
+        const sockets = presence && presence[key];
+        if (sockets && sockets.size) {
+          sockets.forEach(sid => io.to(sid).emit('game:please-start', payloadOut));
+        }
+      });
+      // once we've delivered the please-start due to the UI open event, clear pending
+      try { delete pendingStartNotifications[String(gameId)]; } catch (e) { /* ignore */ }
+    } catch (err) {
+      console.warn('game:open handler failed', err && err.message);
     }
   });
 

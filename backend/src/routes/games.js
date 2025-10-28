@@ -78,11 +78,32 @@ router.get('/:id', async (req, res) => {
   const userId = req.userId;
   if (!userId) return res.status(401).json({ message: 'unauthorized' });
   try {
-    const sql = 'SELECT id, name, players, human_player, moves, winner, created_at FROM games WHERE id=$1 AND user_id=$2 LIMIT 1';
-    const result = await query(sql, [req.params.id, userId]);
+    // allow access if the requesting user is the owner OR is one of the players
+    // first get the user's email
+    const ures = await query('SELECT email FROM users WHERE id=$1 LIMIT 1', [userId]);
+    const userEmail = ures.rows[0] && ures.rows[0].email && String(ures.rows[0].email).toLowerCase();
+
+    // fetch the game by id (without user restriction)
+    const sql = 'SELECT id, user_id, name, players, human_player, moves, winner, created_at FROM games WHERE id=$1 LIMIT 1';
+    const result = await query(sql, [req.params.id]);
     const game = result.rows[0];
     if (!game) return res.status(404).json({ message: 'not found' });
-    return res.json({ game });
+
+    // if requester is owner, allow
+    if (game.user_id === userId) return res.json({ game });
+
+    // otherwise check if user's email is in the players array
+    try {
+      const players = game.players || [];
+      const normalized = (players || []).map(p => p && String(p).toLowerCase());
+      if (userEmail && normalized.includes(userEmail)) {
+        return res.json({ game });
+      }
+    } catch (e) {
+      // fallback: deny
+    }
+
+    return res.status(403).json({ message: 'forbidden' });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'internal error' });

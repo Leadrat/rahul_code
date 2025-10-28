@@ -4,12 +4,13 @@ import { useEffect, useRef } from 'react';
 
 type Invite = any;
 
-export function createGameSocket({ onInvite, onInviteStatus, onPresence, onGameState, onGameStarted, onMove }: {
+export function createGameSocket({ onInvite, onInviteStatus, onPresence, onGameState, onGameStarted, onGamePleaseStart, onMove }: {
   onInvite?: (invite: Invite) => void,
   onInviteStatus?: (data: any) => void,
   onPresence?: (data: any) => void,
   onGameState?: (state: any) => void,
   onGameStarted?: (payload: any) => void,
+  onGamePleaseStart?: (payload: any) => void,
   onMove?: (payload: any) => void,
 }) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
@@ -23,6 +24,14 @@ export function createGameSocket({ onInvite, onInviteStatus, onPresence, onGameS
   if (onPresence) socket.on('presence:changed', onPresence);
   if (onGameState) socket.on('game:state', onGameState);
   if (onGameStarted) socket.on('game:started', onGameStarted);
+  // allow handlers to respond to a "please start" request from another client
+  // If a dedicated onGamePleaseStart handler isn't provided, fall back to
+  // the onGameStarted handler so the same UI popup/flow is used.
+  if (onGamePleaseStart) {
+    socket.on('game:please-start', onGamePleaseStart);
+  } else if (onGameStarted) {
+    socket.on('game:please-start', onGameStarted as any);
+  }
   if (onMove) socket.on('move:applied', onMove);
 
   return socket;
