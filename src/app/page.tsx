@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import Board from '../components/Board';
 import Commentary, { generateCommentaryForMove } from '../components/Commentary';
 import GamesPanel from '../components/GamesPanel';
-import { saveGame } from '../utils/indexeddb';
 import { useGameSocket } from '../utils/useGameSocket';
 import Notifications from '../components/Notifications';
 import styles from '../components/Board.module.css';
@@ -73,10 +72,27 @@ export default function HomePage() {
       setMoveHistory(moves.map((m: any, idx: number) => ({ player: m.playerEmail || m.player || (m.move && m.move.player) || 'X', position: (m.move && (m.move.position ?? m.move.index)) ?? m.position ?? 0, timestamp: new Date(m.createdAt || m.at || Date.now()), moveNumber: idx + 1 })));
       // populate players if present
       if (state.players && Array.isArray(state.players) && state.players.length > 0) {
+        // normalize players and build sign mapping: players[0] => X, players[1] => O
+        const normalizedPlayers = state.players.map((p: any) => p && String(p).toLowerCase());
+        setCurrentGamePlayers(normalizedPlayers);
+        currentGamePlayersRef.current = normalizedPlayers;
+
         const last = moves.length ? moves[moves.length - 1] : null;
-        const lastEmail = last && (last.playerEmail || last.player);
-        const next = state.players.find((p: any) => p !== lastEmail) || null;
-        setCurrentGameNextEmail(next);
+        const lastEmail = last && (last.playerEmail || last.player) ? String(last.playerEmail || last.player).toLowerCase() : null;
+        const nextEmail = normalizedPlayers.find((p: any) => p !== lastEmail) || null;
+        setCurrentGameNextEmail(nextEmail);
+
+        // determine which sign is next based on number of moves (even => X, odd => O)
+        const nextSign: Player = moves.length % 2 === 0 ? 'X' : 'O';
+        setCurrentPlayer(nextSign);
+
+        // set humanPlayer for the logged-in user if they are one of the players
+        const me = userEmailRef.current;
+        if (me) {
+          const myIndex = normalizedPlayers.indexOf(me);
+          if (myIndex === 0) setHumanPlayer('X');
+          else if (myIndex === 1) setHumanPlayer('O');
+        }
       }
     } catch (e) {
       // ignore load errors
@@ -235,8 +251,7 @@ export default function HomePage() {
   const [systemTimerId, setSystemTimerId] = useState<number | null>(null);
   const [saveName, setSaveName] = useState('');
   const [refreshSignal, setRefreshSignal] = useState(0);
-  const [autoSavedForMoves, setAutoSavedForMoves] = useState<number | null>(null);
-  const [autoReportedForMoves, setAutoReportedForMoves] = useState<number | null>(null);
+  // automatic reporting of minimal results to server removed per UX request
   const [endSignal, setEndSignal] = useState(0);
   const [lastResultDelta, setLastResultDelta] = useState<{ wins: number; losses: number; draws: number } | null>(null);
 
@@ -279,30 +294,7 @@ export default function HomePage() {
     }
     setLastResultDelta(delta);
     setEndSignal((s) => s + 1);
-    // report minimal result to server so server-side stats reflect this game (no replay saved)
-    (async () => {
-      try {
-        // avoid duplicate reports
-        if (autoReportedForMoves === moveHistory.length) return;
-        const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
-        if (!token) return; // only report for logged-in users
-        const players = Array.from(new Set(moveHistory.map((m) => m.player))).slice(0, 2);
-        const payload = { players, human_player: humanPlayer, winner: status.type === 'winner' ? status.player : null };
-        const res = await fetch('http://localhost:4001/api/games/result', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          setAutoReportedForMoves(moveHistory.length);
-          setRefreshSignal((s) => s + 1);
-        }
-      } catch (e) {
-        // ignore reporting failures
-        // eslint-disable-next-line no-console
-        console.warn('Failed to report result to server', e);
-      }
-    })();
+    // NOTE: automatic reporting of results to the server has been disabled per UX.
   }, [isGameOver]);
 
   // NOTE: auto-save on game end disabled per UX request.
@@ -353,36 +345,8 @@ export default function HomePage() {
     setCurrentPlayer((p) => (p === 'X' ? 'O' : 'X'));
   }
 
-  // Persist the current in-progress game to local storage / IndexedDB whenever moves change
-  // Skip persisting while in replay mode (we don't want to save replays)
-  React.useEffect(() => {
-    if (replayMode) return;
-    if (moveHistory.length === 0) {
-      // clear last-game in localStorage
-      try { localStorage.removeItem('tictactoe:lastGame'); } catch (e) { /* ignore */ }
-      return;
-    }
-
-    const players = Array.from(new Set(moveHistory.map((m) => m.player))).slice(0, 2);
-    const now = new Date().toISOString();
-    const gameRecord = {
-      id: `local-${Date.now()}`,
-      players,
-      moves: moveHistory.map((m, idx) => ({ player: m.player, index: m.position, commentary: m.commentary || generateCommentaryForMove(m, idx, moveHistory), createdAt: m.timestamp.toISOString() })),
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    // save to localStorage for quick access
-    try {
-      localStorage.setItem('tictactoe:lastGame', JSON.stringify(gameRecord));
-    } catch (e) {
-      // ignore localStorage errors
-    }
-
-    // save to IndexedDB (async, fire-and-forget) - includes generated commentary so local saves include commentary
-    saveGame(gameRecord).catch(() => { /* ignore */ });
-  }, [moveHistory, replayMode]);
+  // NOTE: automatic persisting of in-progress games was removed per UX request.
+  // Games are now saved only when the user explicitly clicks the Save button.
 
   function handleReset(newHumanPlayer?: Player) {
     setSquares(Array(9).fill(null));
@@ -405,6 +369,20 @@ export default function HomePage() {
       }, 300) as unknown as number;
       setSystemTimerId(tid);
     }
+  }
+
+  // Start a fresh local game vs computer. Human plays as X, computer as O.
+  function startNewLocalGame() {
+    // Ensure we're not in a multiplayer session
+    setCurrentGameId(null);
+    setCurrentGamePlayers(null);
+    currentGamePlayersRef.current = null;
+    setCurrentGameNextEmail(null);
+    setGameStartPayload(null);
+    setShowGameStart(false);
+    // set human to X and reset board accordingly
+    setHumanPlayer('X');
+    handleReset('X');
   }
 
   function stopReplay() {
@@ -662,7 +640,7 @@ export default function HomePage() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 420 }}>
                 <div className={styles.actions}>
-                  <button className={styles.reset} onClick={() => handleReset()} type="button">
+                  <button className={styles.reset} onClick={() => startNewLocalGame()} type="button">
                     🔄 New Game
                   </button>
                 </div>
