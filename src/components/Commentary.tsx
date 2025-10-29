@@ -110,7 +110,7 @@ export default function Commentary({ moves, isGameOver, winner }: CommentaryProp
           </div>
         ) : (
           moves.map((move, index) => (
-            <div key={move.timestamp.getTime()} className={styles.moveItem}>
+            <div key={`${move.timestamp.getTime()}-${index}`} className={styles.moveItem}>
               <div className={styles.moveHeader}>
                 <span className={styles.moveNumber}>Move {move.moveNumber}</span>
                 <span className={`${styles.player} ${move.player === 'X' ? styles.playerX : styles.playerO}`}>

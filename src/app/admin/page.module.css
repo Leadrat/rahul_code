@@ -1,0 +1,270 @@
+.container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  /* background wallpaper for admin panel */
+  background-image: url('https://cdn.wallpapersafari.com/18/9/QLolf9.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+}
+
+.heading {
+  color: #333;
+  margin-bottom: 2rem;
+  font-size: 2rem;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 1rem;
+}
+
+.loginForm {
+  background: rgba(255,255,255,0.9);
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(2,6,23,0.25);
+  max-width: 420px;
+  margin: 2rem auto;
+  backdrop-filter: blur(6px);
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.button {
+  background: #0070f3;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.button:hover {
+  background: #0051a2;
+}
+
+.button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.buttonSecondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+  margin-left: 0.5rem;
+}
+
+.buttonSecondary:hover {
+  background: #5a6268;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.card {
+  background: rgba(255,255,255,0.86);
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.12);
+  border: 1px solid rgba(15,23,42,0.06);
+  backdrop-filter: blur(4px);
+}
+
+/* Ensure readable black text inside admin cards */
+.card, .card * {
+  color: rgba(0,0,0,0.92);
+}
+
+.cardTitle {
+  color: #333;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.statItem {
+  text-align: center;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.statLabel {
+  color: #6c757d;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.statValue {
+  color: #333;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.table tbody tr:hover {
+  background: #fbfdff;
+}
+
+.table th {
+  background: #f8f9fa;
+  font-weight: 500;
+  color: #000;
+}
+
+.table th,
+.table td {
+  color: #000;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.statusDotOnline {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #28a745;
+}
+
+.statusDotOffline {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #dc3545;
+}
+
+/* Replay styles */
+.replayContainer {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  background: #f7fbff;
+  border-radius: 6px;
+}
+
+.replayBoardWrapper {
+  width: 180px;
+  flex: 0 0 180px;
+}
+
+.replayBoard {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.replaySquare {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #0b1220;
+  border-radius: 4px;
+}
+
+.replayInfo {
+  flex: 1;
+}
+
+.replayMoveHeader {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.replayMoveList {
+  max-height: 160px;
+  overflow: auto;
+  padding-left: 1.25rem;
+}
+
+.replayControls {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+/* Slightly nicer header */
+.cardTitle h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+/* small notification note (rounded pill) */
+.notificationNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.92);
+  padding: 0.4rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  color: #071126;
+  box-shadow: 0 6px 20px rgba(2,6,23,0.06);
+  border: 1px solid rgba(2,6,23,0.04);
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

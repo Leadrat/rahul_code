@@ -33,6 +33,19 @@ async function init() {
       created_at TIMESTAMPTZ DEFAULT now()
     );
   `);
+  // Create invites table to support multiplayer invites (by email)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS invites (
+      id SERIAL PRIMARY KEY,
+      from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      to_email TEXT NOT NULL,
+      game_id INTEGER,
+      status TEXT DEFAULT 'pending',
+      message TEXT,
+      expires_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+  `);
   // In case the table existed before we added human_player, ensure the column exists
   try {
     await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS human_player TEXT;`);

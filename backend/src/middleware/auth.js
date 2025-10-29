@@ -8,8 +8,10 @@ function authMiddleware(req, res, next) {
   const token = auth.slice('Bearer '.length);
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    // attach user id to request
-    req.userId = payload.sub;
+    // attach full payload for downstream handlers to inspect (supports admin tokens)
+    req.jwtPayload = payload;
+    // attach user id when present
+    if (payload && payload.sub) req.userId = payload.sub;
     next();
   } catch (err) {
     return res.status(401).json({ message: 'invalid token' });
