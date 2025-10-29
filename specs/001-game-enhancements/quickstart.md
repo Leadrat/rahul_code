@@ -34,7 +34,7 @@ Steps
 
 Health check
 
-- GET http://localhost:4000/health
+- GET http://localhost:4001/health
 
 Notes
 

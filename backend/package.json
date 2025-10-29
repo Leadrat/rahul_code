@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "build": "node -e \"console.log('No build step configured for backend')\""
+    "build": "netlify deploy --prod"
   },
   "dependencies": {
     "bcrypt": "^5.1.0",
@@ -16,7 +16,10 @@
     "nodemailer": "^6.9.3",
     "jsonwebtoken": "^9.0.0",
     "pg": "^8.11.0",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.7.2",
+    "netlify-lambda": "^2.0.3",
+    "netlify-cli": "^15.10.1",
+    "serverless-http": "^2.7.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
