@@ -103,9 +103,24 @@ export default function GamesPanel({ onLoadReplay, currentMoves, winner, humanPl
       if (!res.ok) return alert('Game not found');
       const body = await res.json();
       const g = body.game;
-      const moves: Move[] = (g.moves || []).map((m: any, idx: number) => ({ player: m.player, position: m.index, commentary: m.commentary, timestamp: new Date(m.createdAt || Date.now()), moveNumber: idx + 1 }));
-  // start inline replay under the clicked row
-  startInlineReplay(String(id), moves);
+
+      // Create mapping from player emails to symbols (X/O)
+      const players = Array.isArray(g.players) ? g.players : [];
+      const emailToSymbol: Record<string, Player> = {};
+      if (players.length > 0) {
+        const p0 = players[0] && String(players[0]).toLowerCase();
+        const p1 = players[1] && String(players[1]).toLowerCase();
+        if (p0) emailToSymbol[p0] = 'X';
+        if (p1) emailToSymbol[p1] = 'O';
+      }
+
+      const moves: Move[] = (g.moves || []).map((m: any, idx: number) => {
+        const playerEmail = String(m.player).toLowerCase();
+        const playerSymbol = emailToSymbol[playerEmail] || (idx % 2 === 0 ? 'X' : 'O'); // fallback to alternating X/O based on move index if mapping fails
+        return { player: playerSymbol, position: m.index, commentary: m.commentary, timestamp: new Date(m.createdAt || Date.now()), moveNumber: idx + 1 };
+      });
+      // start inline replay under the clicked row
+      startInlineReplay(String(id), moves);
       // also notify parent if they want to load the main replay area
       if (onLoadReplay) onLoadReplay(moves);
     } catch (err) {
