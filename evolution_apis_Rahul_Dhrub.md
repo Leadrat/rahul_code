@@ -3,7 +3,7 @@
 Author: Rahul Dhrub
 Date: 2025-10-28
 
-## Executive summary
+## Executive summary :
 
 Application Programming Interfaces (APIs) are the connective tissue of modern software. Over the last three decades they have evolved from language- and platform-specific Remote Procedure Calls (RPC) and SOAP-based systems into distributed, hypermedia-driven RESTful services, lightweight JSON/HTTP endpoints, and more recently GraphQL, gRPC and event-driven streaming APIs. This report traces the major phases of API evolution, explains the technical and organizational drivers behind each phase, discusses trade-offs and operational considerations, examines representative case studies, and offers pragmatic recommendations for designing and operating APIs in 2025 and beyond.
 
