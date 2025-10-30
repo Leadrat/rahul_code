@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("rahul_core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+11e9c540c5ce35d2c5d7cf70d7d33d5b7715af87")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c864f4ff1a9392eb597c230abb5644f3e069d43b")]
 [assembly: System.Reflection.AssemblyProductAttribute("rahul_core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("rahul_core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

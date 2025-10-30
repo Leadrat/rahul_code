@@ -28,6 +28,29 @@ namespace dotnet_core_backend.Controllers
         }
 
         [Authorize]
+        [HttpGet("stats")]
+        public async Task<IActionResult> GetStats()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub);
+            if (userId == null) return Unauthorized();
+
+            try
+            {
+                var games = await _games.GetGamesForUserAsync(userId);
+                var wins = games.Count(g => g.Winner != null && g.Winner != "draw");
+                var losses = games.Count(g => g.Winner != null && g.Winner != "draw" && g.Winner != g.HumanPlayer);
+                var draws = games.Count(g => g.Winner == "draw");
+                
+                return Ok(new { wins, losses, draws, total = games.Count });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting stats: {ex.Message}");
+                return Ok(new { wins = 0, losses = 0, draws = 0, total = 0 });
+            }
+        }
+
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -53,7 +76,11 @@ namespace dotnet_core_backend.Controllers
         public async Task<IActionResult> Create([FromBody] CreateGameRequest req)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub);
-            if (userId == null) return Unauthorized();
+            if (userId == null) 
+            {
+                Console.WriteLine("Create game: User ID is null");
+                return Unauthorized();
+            }
 
             // Log the incoming request for debugging
             Console.WriteLine($"Creating game for user {userId}");
@@ -70,7 +97,10 @@ namespace dotnet_core_backend.Controllers
                     Moves = req.Moves is string s ? s : JsonSerializer.Serialize(req.Moves)
                 };
 
+                Console.WriteLine($"Game object created: {JsonSerializer.Serialize(game)}");
+
                 var saved = await _games.AddGameForUserAsync(userId, game);
+                Console.WriteLine($"Game saved successfully with ID: {saved.Id}");
                 return CreatedAtAction(nameof(GetById), new { id = saved.Id }, new { game = saved });
             }
             catch (System.Exception ex)
@@ -78,6 +108,10 @@ namespace dotnet_core_backend.Controllers
                 // Log the full exception for debugging
                 Console.WriteLine($"Error saving game: {ex.GetType().Name}: {ex.Message}");
                 Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                }
                 // return a 500 with some details for debugging during dev
                 return Problem(detail: ex.Message, title: "Failed to save game");
             }

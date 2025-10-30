@@ -129,9 +129,11 @@ builder.Services.AddCors(options =>
         policy.SetIsOriginAllowed(origin =>
         {
             if (string.IsNullOrEmpty(origin)) return false;
-            // Accept http://localhost:* and http://127.0.0.1:*
-            return origin.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase)
-                   || origin.StartsWith("http://127.0.0.1", StringComparison.OrdinalIgnoreCase);
+            // Accept http://localhost:* and http://127.0.0.1:* on ports 3000 and 3001
+            return (origin.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase) &&
+                   (origin.Contains(":3000") || origin.Contains(":3001")))
+                   || (origin.StartsWith("http://127.0.0.1", StringComparison.OrdinalIgnoreCase) &&
+                   (origin.Contains(":3000") || origin.Contains(":3001")));
         })
         .AllowAnyHeader()
         .AllowAnyMethod()
