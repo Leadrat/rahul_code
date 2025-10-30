@@ -1,0 +1,1 @@
+Host=ep-jolly-sound-a42vi9ji-pooler.us-east-1.aws.neon.tech;Database=tic_tac_toe;Username=neondb_owner;Password=npg_QaDL2XEYuId8;SSL Mode=Require;Trust Server Certificate=true

@@ -62,7 +62,7 @@ export default function GamesPanel({ onLoadReplay, currentMoves, winner, humanPl
       return;
     }
     try {
-  const res = await fetch('http://localhost:5001/api/games', { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch('/api/games', { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) {
         console.error('Failed to fetch games', res.statusText);
         setGames([]);
@@ -72,7 +72,7 @@ export default function GamesPanel({ onLoadReplay, currentMoves, winner, humanPl
       setGames(body.games || []);
       // also try fetch stats
       try {
-  const statsRes = await fetch('http://localhost:5001/api/games/stats', { headers: { Authorization: `Bearer ${token}` } });
+  const statsRes = await fetch('/api/games/stats', { headers: { Authorization: `Bearer ${token}` } });
         if (statsRes.ok) {
           const statsBody = await statsRes.json();
           // Normalize stats to numbers in case the API returns strings
@@ -99,7 +99,7 @@ export default function GamesPanel({ onLoadReplay, currentMoves, winner, humanPl
     const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
     if (!token) return alert('You must be logged in to replay saved games');
     try {
-  const res = await fetch(`http://localhost:5001/api/games/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(`/api/games/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return alert('Game not found');
       const body = await res.json();
       const g = body.game;

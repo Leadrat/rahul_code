@@ -1,0 +1,13 @@
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\bin\Debug\net9.0\GameBackend.Domain.deps.json
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\bin\Debug\net9.0\GameBackend.Domain.dll
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\bin\Debug\net9.0\GameBackend.Domain.pdb
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\obj\Debug\net9.0\GameBackend.Domain.csproj.AssemblyReference.cache
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\obj\Debug\net9.0\GameBackend.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\obj\Debug\net9.0\GameBackend.Domain.AssemblyInfoInputs.cache
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\obj\Debug\net9.0\GameBackend.Domain.AssemblyInfo.cs
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\obj\Debug\net9.0\GameBackend.Domain.csproj.CoreCompileInputs.cache
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\obj\Debug\net9.0\GameBackend.Domain.sourcelink.json
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\obj\Debug\net9.0\GameBackend.Domain.dll
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\obj\Debug\net9.0\refint\GameBackend.Domain.dll
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\obj\Debug\net9.0\GameBackend.Domain.pdb
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Domain\obj\Debug\net9.0\ref\GameBackend.Domain.dll
