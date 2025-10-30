@@ -23,13 +23,21 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:4001/api/auth/login', {
+    const res = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body?.message || 'Login failed');
+      if (!res.ok) {
+        // handle various error shapes (ProblemDetails, array of strings, etc.)
+        let msg = 'Login failed';
+        if (Array.isArray(body)) msg = body.join('; ');
+        else if (body && body.title) msg = body.title;
+        else if (body && body.errors) msg = JSON.stringify(body.errors);
+        else if (body && body.message) msg = body.message;
+        throw new Error(msg);
+      }
       // store token
       if (body.token) {
         localStorage.setItem('tictactoe:token', body.token);

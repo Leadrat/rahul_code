@@ -22,13 +22,20 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:4001/api/auth/register', {
+  const res = await fetch('http://localhost:5000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body?.message || 'Register failed');
+      if (!res.ok) {
+        let msg = 'Register failed';
+        if (Array.isArray(body)) msg = body.join('; ');
+        else if (body && body.title) msg = body.title;
+        else if (body && body.errors) msg = JSON.stringify(body.errors);
+        else if (body && body.message) msg = body.message;
+        throw new Error(msg);
+      }
       // show a small success message and redirect
       alert('Registered — you can now login');
       router.push('/login');
