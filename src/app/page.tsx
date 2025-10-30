@@ -53,7 +53,7 @@ export default function HomePage() {
     try {
       if (!gameId) return;
       const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
-  const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
       const res = await fetch(`${backend}/api/games/${encodeURIComponent(String(gameId))}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) return;
       const body = await res.json().catch(() => null);
@@ -105,7 +105,7 @@ export default function HomePage() {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
         if (!token) return;
-  const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
         const res = await fetch(`${backend}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) return;
         const body = await res.json().catch(() => ({}));
@@ -490,7 +490,7 @@ export default function HomePage() {
                     onAccept={async (inv: any) => {
                     try {
                       const token = localStorage.getItem('tictactoe:token');
-                      const res = await fetch(`http://localhost:5000/api/invites/${inv.id}/respond`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ response: 'accept' }) });
+                      const res = await fetch(`http://localhost:5001/api/invites/${inv.id}/respond`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ response: 'accept' }) });
                       const body = await res.json().catch(() => ({}));
                       if (res.ok) {
                         setInvites((s) => s.filter(i => i.id !== inv.id));
@@ -512,13 +512,13 @@ export default function HomePage() {
                   onDecline={async (inv: any) => {
                     try {
                       const token = localStorage.getItem('tictactoe:token');
-                      await fetch(`http://localhost:5000/api/invites/${inv.id}/respond`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ response: 'decline' }) });
+                      await fetch(`http://localhost:5001/api/invites/${inv.id}/respond`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ response: 'decline' }) });
                       setInvites((s) => s.filter(i => i.id !== inv.id));
                     } catch (e) { }
                   }}
                   onSendInvite={async ({ toEmail, message }) => {
                     const token = localStorage.getItem('tictactoe:token');
-                    const res = await fetch('http://localhost:5000/api/invites', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ toEmail, message }) });
+                    const res = await fetch('http://localhost:5001/api/invites', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ toEmail, message }) });
                     if (!res.ok) throw new Error('invite failed');
                     const body = await res.json().catch(() => ({}));
                     // Do not add outgoing invites to the local notifications list — only receivers should see invites
@@ -550,7 +550,7 @@ export default function HomePage() {
                               if (!gid && gameStartPayload && gameStartPayload.inviteId) {
                                 try {
                                   const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
-                                  const res = await fetch(`http://localhost:5000/api/invites/${gameStartPayload.inviteId}/start`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
+                                  const res = await fetch(`http://localhost:5001/api/invites/${gameStartPayload.inviteId}/start`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
                                   const body = await res.json().catch(() => ({}));
                                   if (res.ok && body && (body.gameId || body.id)) {
                                     gid = body.gameId || body.id;
@@ -581,7 +581,7 @@ export default function HomePage() {
                               if (!gid && gameStartPayload && gameStartPayload.inviteId) {
                                 try {
                                   const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
-                                  const res = await fetch(`http://localhost:5000/api/invites/${gameStartPayload.inviteId}/start`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
+                                  const res = await fetch(`http://localhost:5001/api/invites/${gameStartPayload.inviteId}/start`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } });
                                   const body = await res.json().catch(() => ({}));
                                   if (res.ok && body && (body.gameId || body.id)) {
                                     gid = body.gameId || body.id;
@@ -692,7 +692,7 @@ export default function HomePage() {
                         winner: winnerVal,
                       };
                       try {
-                        const res = await fetch('http://localhost:5000/api/games', {
+                        const res = await fetch('http://localhost:5001/api/games', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                           body: JSON.stringify(payload),
