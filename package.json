@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "start:backend": "powershell -ExecutionPolicy Bypass -File ../start-backend.ps1",
+    "start:all": "powershell -ExecutionPolicy Bypass -File ../start-all-parallel.ps1"
   },
   "dependencies": {
     "react": "19.2.0",

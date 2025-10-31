@@ -62,17 +62,17 @@ export default function GamesPanel({ onLoadReplay, currentMoves, winner, humanPl
       return;
     }
     try {
-  const res = await fetch('http://localhost:5000/api/games', { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch('/api/games', { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) {
         console.error('Failed to fetch games', res.statusText);
         setGames([]);
         return;
       }
       const body = await res.json();
-      setGames(body.games || []);
+      setGames(body || []);  // Backend returns array directly, not {games: []}
       // also try fetch stats
       try {
-  const statsRes = await fetch('http://localhost:5000/api/games/stats', { headers: { Authorization: `Bearer ${token}` } });
+  const statsRes = await fetch('/api/games/stats', { headers: { Authorization: `Bearer ${token}` } });
         if (statsRes.ok) {
           const statsBody = await statsRes.json();
           // Normalize stats to numbers in case the API returns strings
@@ -99,10 +99,10 @@ export default function GamesPanel({ onLoadReplay, currentMoves, winner, humanPl
     const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
     if (!token) return alert('You must be logged in to replay saved games');
     try {
-  const res = await fetch(`http://localhost:5000/api/games/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(`/api/games/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) return alert('Game not found');
       const body = await res.json();
-      const g = body.game;
+      const g = body;  // Backend returns game directly, not wrapped in {game: ...}
 
       // Create mapping from player emails to symbols (X/O)
       const players = Array.isArray(g.players) ? g.players : [];
@@ -114,7 +114,8 @@ export default function GamesPanel({ onLoadReplay, currentMoves, winner, humanPl
         if (p1) emailToSymbol[p1] = 'O';
       }
 
-      const moves: Move[] = (g.moves || []).map((m: any, idx: number) => {
+      const movesData = typeof g.moves === 'string' ? JSON.parse(g.moves || '[]') : (g.moves || []);
+      const moves: Move[] = movesData.map((m: any, idx: number) => {
         const playerEmail = String(m.player).toLowerCase();
         const playerSymbol = emailToSymbol[playerEmail] || (idx % 2 === 0 ? 'X' : 'O'); // fallback to alternating X/O based on move index if mapping fails
         return { player: playerSymbol, position: m.index, commentary: m.commentary, timestamp: new Date(m.createdAt || Date.now()), moveNumber: idx + 1 };
@@ -199,7 +200,7 @@ export default function GamesPanel({ onLoadReplay, currentMoves, winner, humanPl
                     {expanded[g.id] && (
                     <div style={{ marginTop: 8, paddingLeft: 8 }}>
                       <ol style={{ margin: 0, paddingLeft: 18 }}>
-                        {(g.moves || []).map((m, i) => (
+                        {(typeof g.moves === 'string' ? JSON.parse(g.moves || '[]') : (g.moves || [])).map((m, i) => (
                           <li key={i} style={{ fontSize: 13 }}>
                           {`${i + 1}. ${m.player} @ ${m.index} ${m.createdAt ? '(' + new Date(m.createdAt).toLocaleTimeString() + ')' : ''}`}
                           </li>

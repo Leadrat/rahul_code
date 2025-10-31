@@ -1,0 +1,16 @@
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\obj\Debug\net9.0\GameBackend.Application.csproj.AssemblyReference.cache
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\obj\Debug\net9.0\GameBackend.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\obj\Debug\net9.0\GameBackend.Application.AssemblyInfoInputs.cache
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\obj\Debug\net9.0\GameBackend.Application.AssemblyInfo.cs
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\obj\Debug\net9.0\GameBackend.Application.csproj.CoreCompileInputs.cache
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\obj\Debug\net9.0\GameBackend.Application.sourcelink.json
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\bin\Debug\net9.0\GameBackend.Application.deps.json
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\bin\Debug\net9.0\GameBackend.Application.dll
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\bin\Debug\net9.0\GameBackend.Application.pdb
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\bin\Debug\net9.0\GameBackend.Domain.dll
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\bin\Debug\net9.0\GameBackend.Domain.pdb
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\obj\Debug\net9.0\GameBack.5DE9B507.Up2Date
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\obj\Debug\net9.0\GameBackend.Application.dll
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\obj\Debug\net9.0\refint\GameBackend.Application.dll
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\obj\Debug\net9.0\GameBackend.Application.pdb
+C:\Users\dhrub\Documents\leadrat\bootcamp\rahul_code\dotnet_core_backend\GameBackend.Application\obj\Debug\net9.0\ref\GameBackend.Application.dll

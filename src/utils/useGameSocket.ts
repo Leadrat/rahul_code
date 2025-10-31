@@ -14,7 +14,7 @@ export function createGameSocket({ onInvite, onInviteStatus, onPresence, onGameS
   onMove?: (payload: any) => void,
 }) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
-  const socket: Socket = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000', {
+  const socket: Socket = io('http://localhost:5281', {
     auth: { token },
     transports: ['websocket']
   });

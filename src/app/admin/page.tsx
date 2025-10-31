@@ -4,33 +4,27 @@ import { useRouter } from 'next/navigation';
 import styles from './page.module.css';
 
 interface GameType {
-  id: string;
-  player1_email: string;
-  player2_email: string;
-  winner_email: string | null;
-  status: string;
-  created_at: string;
-}
-
-interface UserStats {
-  total: number;
-  wins: number;
-  draws: number;
-  losses: number;
+  id: number;
+  userId: number;
+  name: string;
+  players: string[];
+  humanPlayer: string;
+  moves: string;
+  winner: string;
+  createdAt: string;
 }
 
 interface UserType {
-  id: string;
+  id: number;
   email: string;
-  created_at: string;
-  online: boolean;
-  stats: UserStats;
+  createdAt: string;
+  gameCount: number;
 }
 
 export default function AdminPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('dhrubrahul11@gmail.com');
+  const [password, setPassword] = useState('12345678');
   const [token, setToken] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('tictactoe:adminToken') : null);
   const [userToken] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null);
   const [users, setUsers] = useState<UserType[] | null>(null);
@@ -50,16 +44,25 @@ export default function AdminPage() {
     if (e) e.preventDefault();
     setLoading(true);
     try {
-  const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
-      const res = await fetch(`${backend}/api/admin/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-      if (!res.ok) throw new Error('login failed');
+  const backend = 'http://localhost:5281';
+      const res = await fetch(`${backend}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'login failed');
+      }
       const body = await res.json();
+      
+      if (!body.user?.isAdmin) {
+        alert('This account is not an admin. Please use dhrubrahul11@gmail.com with password 12345678');
+        return;
+      }
+      
       setToken(body.token);
       localStorage.setItem('tictactoe:adminToken', body.token);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(err);
-      alert('Login failed');
+      alert(`Login failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -69,9 +72,16 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const authToken = token || userToken;
-      if (!authToken) return alert('Login first');
+      if (!authToken) {
+        alert('Please login first');
+        return;
+      }
       
-  const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+      const backend = 'http://localhost:5281';
+      
+      // Debug: log which token is being used
+      console.log('Using token type:', token ? 'admin token' : 'user token');
+      console.log('Token length:', authToken.length);
       
       // Fetch users and games in parallel
       const [usersRes, gamesRes] = await Promise.all([
@@ -79,16 +89,42 @@ export default function AdminPage() {
         fetch(`${backend}/api/admin/games`, { headers: { Authorization: `Bearer ${authToken}` } })
       ]);
 
-      if (!usersRes.ok) throw new Error('Failed to fetch users');
-      if (!gamesRes.ok) throw new Error('Failed to fetch games');
+      if (!usersRes.ok) {
+        if (usersRes.status === 401) {
+          // Clear invalid tokens and prompt for admin login
+          localStorage.removeItem('tictactoe:token');
+          localStorage.removeItem('tictactoe:adminToken');
+          setToken('');
+          alert('Access denied: You are not logged in as an admin.\n\nPlease use these credentials:\nEmail: dhrubrahul11@gmail.com\nPassword: 12345678\n\nYour session has been cleared. Please login again.');
+          return;
+        }
+        throw new Error('Failed to fetch users');
+      }
+      if (!gamesRes.ok) {
+        if (gamesRes.status === 401) {
+          // Clear invalid tokens and prompt for admin login
+          localStorage.removeItem('tictactoe:token');
+          localStorage.removeItem('tictactoe:adminToken');
+          setToken('');
+          alert('Access denied: You are not logged in as an admin.\n\nPlease use these credentials:\nEmail: dhrubrahul11@gmail.com\nPassword: 12345678\n\nYour session has been cleared. Please login again.');
+          return;
+        }
+        throw new Error('Failed to fetch games');
+      }
 
       const [usersData, gamesData] = await Promise.all([
         usersRes.json(),
         gamesRes.json()
       ]);
 
-      setUsers(usersData.users || []);
-      setGames(gamesData.games || []);
+      // Debug: log the received data
+      console.log('Users data received:', usersData);
+      console.log('Games data received:', gamesData);
+      console.log('Users count:', Array.isArray(usersData) ? usersData.length : 'not array');
+      console.log('Games count:', Array.isArray(gamesData) ? gamesData.length : 'not array');
+
+      setUsers(usersData || []);
+      setGames(gamesData || []);
     } catch (err) {
       console.error(err);
       alert('Failed to fetch data');
@@ -102,11 +138,11 @@ export default function AdminPage() {
     try {
       const authToken = token || userToken;
       if (!authToken) return alert('Login first');
-  const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const backend = 'http://localhost:5281';
       const res = await fetch(`${backend}/api/admin/players/${userId}/games`, { headers: { Authorization: `Bearer ${authToken}` } });
       if (!res.ok) throw new Error('failed to fetch user games');
       const body = await res.json();
-      setSelectedUserGames(body.games || []);
+      setSelectedUserGames(body || []);
     } catch (err) {
       console.error(err);
       alert('Failed to fetch user games');
@@ -120,11 +156,11 @@ export default function AdminPage() {
     try {
       const authToken = token || userToken;
       if (!authToken) return alert('Login first');
-  const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const backend = 'http://localhost:5281';
       const res = await fetch(`${backend}/api/admin/games/${gameId}`, { headers: { Authorization: `Bearer ${authToken}` } });
       if (!res.ok) throw new Error('failed to fetch game');
       const body = await res.json();
-      const g = body.game || null;
+      const g = body || null;
       setReplayIndex(0);
       if (g) {
         // Map stored players (emails) to X/O for replay display
@@ -134,7 +170,7 @@ export default function AdminPage() {
           if (playersList[0]) signMap[playersList[0]] = 'X';
           if (playersList[1]) signMap[playersList[1]] = 'O';
         }
-        const moves = (g.moves || []).map((m: any, idx: number) => {
+        const moves = (typeof g.moves === 'string' ? JSON.parse(g.moves || '[]') : (g.moves || [])).map((m: any, idx: number) => {
           const rawPlayer = m.player || m.playerEmail || null;
           let playerSign: string;
           if (rawPlayer) {
@@ -200,11 +236,11 @@ export default function AdminPage() {
     try {
       const authToken = token || userToken;
       if (!authToken) return alert('Login first');
-  const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+  const backend = 'http://localhost:5281';
       const res = await fetch(`${backend}/api/admin/games/${gameId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${authToken}` } });
       if (!res.ok) throw new Error('failed to delete');
       // refresh selected user's games
-      if (selectedUser) await fetchUserGames(selectedUser.id);
+      if (selectedUser) await fetchUserGames(String(selectedUser.id));
       // also refresh global users list (stats)
       await fetchData();
     } catch (err) {
@@ -223,7 +259,7 @@ export default function AdminPage() {
     const tryPromote = async () => {
       try {
         if (!token && userToken) {
-          const backend = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+          const backend = 'http://localhost:5281';
           const res = await fetch(`${backend}/api/auth/me`, { headers: { Authorization: `Bearer ${userToken}` } });
           if (res.ok) {
             const body = await res.json().catch(() => ({}));
@@ -335,22 +371,22 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {users.map(user => (
-                      <tr key={user.id} style={{ cursor: 'pointer' }} onClick={() => { setSelectedUser(user); fetchUserGames(user.id); }}>
+                      <tr key={user.id} style={{ cursor: 'pointer' }} onClick={() => { setSelectedUser(user); fetchUserGames(String(user.id)); }}>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div style={{ fontWeight: 600 }}>{user.email}</div>
-                            <div style={{ color: '#6c757d', fontSize: 12 }}>joined {new Date(user.created_at).toLocaleDateString()}</div>
+                            <div style={{ fontWeight: 600 }}>{user.email || 'Unknown'}</div>
+                            <div style={{ color: '#6c757d', fontSize: 12 }}>joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}</div>
                           </div>
                         </td>
                         <td>
                           <div className={styles.status}>
-                            <span className={user.online ? styles.statusDotOnline : styles.statusDotOffline} />
-                            {user.online ? 'Online' : 'Offline'}
+                            <span className={styles.statusDotOffline} />
+                            Offline
                           </div>
                         </td>
-                        <td>{user.stats.total}</td>
+                        <td>{user.gameCount || 0}</td>
                         <td>
-                          {user.stats.wins}/{user.stats.draws}/{user.stats.losses}
+                          0/0/0
                         </td>
                       </tr>
                     ))}
@@ -390,7 +426,7 @@ export default function AdminPage() {
                       {selectedUserGames.map(g => (
                         <React.Fragment key={g.id}>
                           <tr>
-                            <td>{formatDate(g.created_at)}</td>
+                            <td>{formatDate(g.createdAt)}</td>
                             <td style={{ color: '#000' }}>{g.name || '—'}</td>
                             <td style={{ color: '#000' }}>{Array.isArray(g.players) ? g.players.join(' vs ') : (g.players || '')}</td>
                             <td style={{ color: '#000' }}>{g.winner ? <strong>{g.winner}</strong> : '—'}</td>
