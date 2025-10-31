@@ -109,8 +109,21 @@ class SignalRService {
   }
   
   static Future<void> sendMove(int gameId, Map<String, dynamic> move) async {
+    print('🎮 [SEND_MOVE] Attempting to send move for game $gameId');
+    print('🎮 [SEND_MOVE] Connection state: ${_connection?.state}');
+    print('🎮 [SEND_MOVE] Move data: $move');
+    
     if (_connection?.state == HubConnectionState.Connected) {
-      await _connection!.invoke('SendMove', args: [gameId.toString(), move]);
+      try {
+        print('🎮 [SEND_MOVE] Invoking SendMove with gameId: ${gameId.toString()}, move: $move');
+        await _connection!.invoke('SendMove', args: [gameId.toString(), move]);
+        print('✅ [SEND_MOVE] Move sent successfully');
+      } catch (e, stackTrace) {
+        print('❌ [SEND_MOVE] Error sending move: $e');
+        print('❌ [SEND_MOVE] Stack trace: $stackTrace');
+      }
+    } else {
+      print('❌ [SEND_MOVE] Not connected to SignalR. State: ${_connection?.state}');
     }
   }
   

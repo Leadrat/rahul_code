@@ -170,11 +170,17 @@ class _GameScreenState extends State<GameScreen> {
           final gameId = moveData['gameId'];
           final move = moveData['move'];
           
-          print('🎯 [MOVE_EVENT] Game ID from event: $gameId');
-          print('🎯 [MOVE_EVENT] Current game ID: ${gameProvider.currentGameId}');
+          print('🎯 [MOVE_EVENT] Game ID from event: $gameId (type: ${gameId.runtimeType})');
+          print('🎯 [MOVE_EVENT] Current game ID: ${gameProvider.currentGameId} (type: ${gameProvider.currentGameId.runtimeType})');
           print('🎯 [MOVE_EVENT] Move data: $move');
           
-          if (gameId == gameProvider.currentGameId && move != null) {
+          // Convert both to int for comparison
+          final eventGameId = gameId is int ? gameId : int.tryParse(gameId.toString());
+          final currentGameId = gameProvider.currentGameId;
+          
+          print('🎯 [MOVE_EVENT] Comparison: $eventGameId == $currentGameId = ${eventGameId == currentGameId}');
+          
+          if (eventGameId == currentGameId && move != null) {
             final position = move['position'];
             final sign = move['sign'] ?? move['player'];
             
@@ -189,9 +195,9 @@ class _GameScreenState extends State<GameScreen> {
             }
           } else {
             print('❌ [MOVE_EVENT] Game ID mismatch or move is null');
-            if (gameId != gameProvider.currentGameId) {
-              print('   - Event gameId: $gameId does not match current: ${gameProvider.currentGameId}');
-            }
+            print('   - Event gameId: $eventGameId (type: ${eventGameId.runtimeType})');
+            print('   - Current gameId: $currentGameId (type: ${currentGameId.runtimeType})');
+            print('   - Move is null: ${move == null}');
           }
         } else {
           print('❌ [MOVE_EVENT] Data is not a list or is empty');
@@ -228,12 +234,24 @@ class _GameScreenState extends State<GameScreen> {
   void _handleSquareClick(int index) {
     final gameProvider = context.read<GameProvider>();
     
+    print('🎯 [CLICK] Square $index clicked');
+    print('🎯 [CLICK] Square value: ${gameProvider.squares[index]}');
+    print('🎯 [CLICK] Game over: ${gameProvider.isGameOver}');
+    print('🎯 [CLICK] Current game ID: ${gameProvider.currentGameId}');
+    print('🎯 [CLICK] SignalR connected: ${SignalRService.isConnected}');
+    
     if (gameProvider.squares[index] != null || gameProvider.isGameOver) {
+      print('❌ [CLICK] Square already occupied or game over');
       return;
     }
 
     // If in multiplayer mode, send move via SignalR
     if (gameProvider.currentGameId != null && SignalRService.isConnected) {
+      print('🌐 [CLICK] Multiplayer mode - sending move via SignalR');
+      print('🌐 [CLICK] Game ID: ${gameProvider.currentGameId}');
+      print('🌐 [CLICK] Position: $index');
+      print('🌐 [CLICK] Sign: ${gameProvider.currentPlayer}');
+      
       SignalRService.sendMove(
         gameProvider.currentGameId!,
         {
@@ -241,8 +259,10 @@ class _GameScreenState extends State<GameScreen> {
           'sign': gameProvider.currentPlayer,
         },
       );
+      print('✅ [CLICK] Move sent to server, waiting for move:applied event');
     } else {
       // Local game
+      print('🏠 [CLICK] Local mode - applying move directly');
       gameProvider.makeMove(index);
     }
   }
