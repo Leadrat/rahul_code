@@ -7,22 +7,45 @@ namespace GameBackend.Application.Services;
 public class InviteService : IInviteService
 {
     private readonly IInviteRepository _inviteRepository;
+    private readonly IUserRepository _userRepository;
 
-    public InviteService(IInviteRepository inviteRepository)
+    public InviteService(IInviteRepository inviteRepository, IUserRepository userRepository)
     {
         _inviteRepository = inviteRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<IEnumerable<InviteDto>> GetUserInvitesAsync(int userId)
     {
-        var invites = await _inviteRepository.GetByFromUserIdAsync(userId);
+        // Get the user's email first
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            return Enumerable.Empty<InviteDto>();
+        }
+        
+        // Get invites sent to this user's email
+        var invites = await _inviteRepository.GetByToEmailAsync(user.Email);
         return invites.Select(MapToDto);
     }
 
     public async Task<InviteDto?> GetInviteByIdAsync(int id, int userId)
     {
         var invite = await _inviteRepository.GetByIdAsync(id);
-        if (invite == null || invite.FromUserId != userId)
+        if (invite == null)
+        {
+            return null;
+        }
+
+        // Get the user making the request
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            return null;
+        }
+
+        // Allow access if user is the sender OR the receiver (by email)
+        if (invite.FromUserId != userId && user.Email.ToLower() != invite.ToEmail.ToLower())
         {
             return null;
         }
@@ -32,6 +55,9 @@ public class InviteService : IInviteService
 
     public async Task<InviteDto> CreateInviteAsync(CreateInviteDto request, int userId)
     {
+        // Find the target user by email
+        var targetUser = await _userRepository.GetByEmailAsync(request.ToEmail);
+        
         var invite = new Invite
         {
             FromUserId = userId,
@@ -44,13 +70,37 @@ public class InviteService : IInviteService
         };
 
         var createdInvite = await _inviteRepository.AddAsync(invite);
-        return MapToDto(createdInvite);
+        
+        // Return DTO with target user info if found
+        var dto = MapToDto(createdInvite);
+        if (targetUser != null)
+        {
+            dto.ToUserId = targetUser.Id;
+        }
+        
+        return dto;
     }
 
     public async Task<bool> UpdateInviteStatusAsync(int id, string status, int userId)
     {
         var invite = await _inviteRepository.GetByIdAsync(id);
-        if (invite == null || invite.FromUserId != userId)
+        if (invite == null)
+        {
+            return false;
+        }
+
+        // Get the user's email to check if they are the receiver
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            return false;
+        }
+
+        // Allow update if user is the sender OR the receiver (person who received the invite)
+        var isSender = invite.FromUserId == userId;
+        var isReceiver = user.Email.Equals(invite.ToEmail, StringComparison.OrdinalIgnoreCase);
+
+        if (!isSender && !isReceiver)
         {
             return false;
         }
@@ -63,7 +113,23 @@ public class InviteService : IInviteService
     public async Task<bool> DeleteInviteAsync(int id, int userId)
     {
         var invite = await _inviteRepository.GetByIdAsync(id);
-        if (invite == null || invite.FromUserId != userId)
+        if (invite == null)
+        {
+            return false;
+        }
+
+        // Get the user's email to check if they are the receiver
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            return false;
+        }
+
+        // Allow deletion if user is the sender OR the receiver (person who received the invite)
+        var isSender = invite.FromUserId == userId;
+        var isReceiver = user.Email.Equals(invite.ToEmail, StringComparison.OrdinalIgnoreCase);
+
+        if (!isSender && !isReceiver)
         {
             return false;
         }
@@ -80,6 +146,7 @@ public class InviteService : IInviteService
             FromUserId = invite.FromUserId,
             FromUserEmail = "", // Will be set by the controller after fetching user
             ToEmail = invite.ToEmail,
+            ToUserId = null, // Will be set by the service if target user is found
             GameId = invite.GameId,
             Status = invite.Status,
             Message = invite.Message,
