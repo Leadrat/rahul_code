@@ -178,11 +178,16 @@ public class InvitesController : ControllerBase
 
                     Console.WriteLine($"Game {game.Id} created and notifications sent for accepted invite {invite.Id}");
 
+                    // Delete the invite after game is created successfully
+                    var deleted = await _inviteService.DeleteInviteAsync(id, userId);
+                    Console.WriteLine($"Invite {id} deleted: {deleted}");
+
                     return Ok(new { 
-                        message = "Invite accepted and game created", 
+                        message = "Invite accepted, game created, and invite removed", 
                         status = "accepted",
                         gameId = game.Id,
-                        game = game
+                        game = game,
+                        inviteDeleted = deleted
                     });
                 }
                 

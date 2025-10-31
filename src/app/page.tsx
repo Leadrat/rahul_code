@@ -248,8 +248,8 @@ export default function HomePage() {
     },
     onMove: (data: any) => {
       console.log('📡 Move applied via SignalR:', data);
-      console.log('📡 Current game ID:', currentGameId);
-      console.log('📡 Data game ID:', data.gameId);
+      console.log('📡 Current game ID:', currentGameId, 'Type:', typeof currentGameId);
+      console.log('📡 Data game ID:', data.gameId, 'Type:', typeof data.gameId);
       
       // Fallback: If currentGameId is null but we're receiving moves, set it
       if (!currentGameId && data.gameId) {
@@ -259,8 +259,14 @@ export default function HomePage() {
         return;
       }
       
+      // Convert both IDs to strings for comparison to handle type mismatch
+      const eventGameId = String(data.gameId);
+      const currentGameIdStr = String(currentGameId);
+      
+      console.log('📡 Comparison:', eventGameId, '===', currentGameIdStr, '=', eventGameId === currentGameIdStr);
+      
       // Only process if this move is for the current game
-      if (data.gameId === currentGameId) {
+      if (eventGameId === currentGameIdStr) {
         const move = data.move;
         console.log('📡 Full move object:', move);
         console.log('📡 Move position:', move?.position);
@@ -286,12 +292,27 @@ export default function HomePage() {
             newSquares[position] = playerSymbol;
             console.log('📡 Updated squares array:', newSquares);
             console.log('📡 Square at position', position, 'after update:', newSquares[position]);
-            console.log('📡 About to return newSquares from setSquares');
+            
+            // Check for game over after applying the move
+            const result = calculateWinner(newSquares);
+            if (result) {
+              setIsGameOver(true);
+              setWinningLine(result.line);
+              console.log('📡 Game over! Winner:', result.player);
+            } else if (newSquares.every(sq => sq !== null)) {
+              setIsGameOver(true);
+              console.log('📡 Game over! Draw');
+            }
           } else {
             console.log('📡 Square already occupied, not updating. Square value:', newSquares[position]);
           }
           return newSquares;
         });
+        
+        // Switch to next player after remote move
+        const nextPlayer = player === 'X' ? 'O' : 'X';
+        setCurrentPlayer(nextPlayer);
+        console.log('📡 Switched current player to:', nextPlayer);
         
         // Add to move history
         const newMove: Move = {
@@ -305,7 +326,12 @@ export default function HomePage() {
         setMoveHistory(prev => [...prev, newMove]);
         console.log('📡 Added to move history:', newMove);
       } else {
-        console.log('📡 Move is for different game, ignoring:', { dataGameId: data.gameId, currentGameId });
+        console.log('📡 Move is for different game, ignoring:', { 
+          dataGameId: data.gameId, 
+          dataGameIdStr: eventGameId,
+          currentGameId, 
+          currentGameIdStr 
+        });
       }
     }
   });
