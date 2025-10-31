@@ -23,8 +23,8 @@ interface UserType {
 
 export default function AdminPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('admin@example.com');
-  const [password, setPassword] = useState('Admin123!');
+  const [email, setEmail] = useState('dhrubrahul11@gmail.com');
+  const [password, setPassword] = useState('12345678');
   const [token, setToken] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('tictactoe:adminToken') : null);
   const [userToken] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null);
   const [users, setUsers] = useState<UserType[] | null>(null);
@@ -44,18 +44,16 @@ export default function AdminPage() {
     if (e) e.preventDefault();
     setLoading(true);
     try {
-  const backend = '';
+  const backend = 'http://localhost:5281';
       const res = await fetch(`${backend}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.message || 'login failed');
       }
       const body = await res.json();
-      console.log('Login response:', body);
-      console.log('User is admin:', body.user?.isAdmin);
       
       if (!body.user?.isAdmin) {
-        alert('This account is not an admin. Please use admin@example.com with password Admin123!');
+        alert('This account is not an admin. Please use dhrubrahul11@gmail.com with password 12345678');
         return;
       }
       
@@ -79,7 +77,7 @@ export default function AdminPage() {
         return;
       }
       
-      const backend = '';
+      const backend = 'http://localhost:5281';
       
       // Debug: log which token is being used
       console.log('Using token type:', token ? 'admin token' : 'user token');
@@ -97,7 +95,7 @@ export default function AdminPage() {
           localStorage.removeItem('tictactoe:token');
           localStorage.removeItem('tictactoe:adminToken');
           setToken('');
-          alert('Access denied: You are not logged in as an admin.\n\nPlease use these credentials:\nEmail: admin@example.com\nPassword: Admin123!\n\nYour session has been cleared. Please login again.');
+          alert('Access denied: You are not logged in as an admin.\n\nPlease use these credentials:\nEmail: dhrubrahul11@gmail.com\nPassword: 12345678\n\nYour session has been cleared. Please login again.');
           return;
         }
         throw new Error('Failed to fetch users');
@@ -108,7 +106,7 @@ export default function AdminPage() {
           localStorage.removeItem('tictactoe:token');
           localStorage.removeItem('tictactoe:adminToken');
           setToken('');
-          alert('Access denied: You are not logged in as an admin.\n\nPlease use these credentials:\nEmail: admin@example.com\nPassword: Admin123!\n\nYour session has been cleared. Please login again.');
+          alert('Access denied: You are not logged in as an admin.\n\nPlease use these credentials:\nEmail: dhrubrahul11@gmail.com\nPassword: 12345678\n\nYour session has been cleared. Please login again.');
           return;
         }
         throw new Error('Failed to fetch games');
@@ -140,7 +138,7 @@ export default function AdminPage() {
     try {
       const authToken = token || userToken;
       if (!authToken) return alert('Login first');
-  const backend = '';
+  const backend = 'http://localhost:5281';
       const res = await fetch(`${backend}/api/admin/players/${userId}/games`, { headers: { Authorization: `Bearer ${authToken}` } });
       if (!res.ok) throw new Error('failed to fetch user games');
       const body = await res.json();
@@ -158,11 +156,11 @@ export default function AdminPage() {
     try {
       const authToken = token || userToken;
       if (!authToken) return alert('Login first');
-  const backend = '';
+  const backend = 'http://localhost:5281';
       const res = await fetch(`${backend}/api/admin/games/${gameId}`, { headers: { Authorization: `Bearer ${authToken}` } });
       if (!res.ok) throw new Error('failed to fetch game');
       const body = await res.json();
-      const g = body.game || null;
+      const g = body || null;
       setReplayIndex(0);
       if (g) {
         // Map stored players (emails) to X/O for replay display
@@ -238,7 +236,7 @@ export default function AdminPage() {
     try {
       const authToken = token || userToken;
       if (!authToken) return alert('Login first');
-  const backend = '';
+  const backend = 'http://localhost:5281';
       const res = await fetch(`${backend}/api/admin/games/${gameId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${authToken}` } });
       if (!res.ok) throw new Error('failed to delete');
       // refresh selected user's games
@@ -261,7 +259,7 @@ export default function AdminPage() {
     const tryPromote = async () => {
       try {
         if (!token && userToken) {
-          const backend = '';
+          const backend = 'http://localhost:5281';
           const res = await fetch(`${backend}/api/auth/me`, { headers: { Authorization: `Bearer ${userToken}` } });
           if (res.ok) {
             const body = await res.json().catch(() => ({}));
