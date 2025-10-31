@@ -43,8 +43,8 @@ public class GamesController : ControllerBase
         var games = await _gameService.GetUserGamesAsync(userId);
         var stats = new
         {
-            wins = games.Count(g => g.Winner == "Human"),
-            losses = games.Count(g => g.Winner == "AI"),
+            wins = games.Count(g => !string.IsNullOrEmpty(g.Winner) && g.Winner != "Draw" && g.Winner == g.HumanPlayer),
+            losses = games.Count(g => !string.IsNullOrEmpty(g.Winner) && g.Winner != "Draw" && g.Winner != g.HumanPlayer),
             draws = games.Count(g => g.Winner == "Draw"),
             total = games.Count()
         };

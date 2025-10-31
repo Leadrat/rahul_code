@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Identity;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using GameBackend.Application.DTOs;
+using System.Linq;
 using GameBackend.Domain.Entities;
+using GameBackend.Application.DTOs;
 using GameBackend.Domain.Interfaces;
 
 namespace GameBackend.Application.Services;
@@ -126,7 +127,9 @@ public class AuthService : IAuthService
 
     private bool IsAdminUser(string email)
     {
-        var adminEmail = _configuration["AdminEmail"];
-        return !string.IsNullOrEmpty(adminEmail) && email.Equals(adminEmail, StringComparison.OrdinalIgnoreCase);
+        var adminEmails = _configuration.GetSection("AdminEmails").GetChildren()
+            .Select(x => x.Value)
+            .ToArray() ?? new string[] { };
+        return adminEmails.Contains(email, StringComparer.OrdinalIgnoreCase);
     }
 }

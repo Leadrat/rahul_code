@@ -30,8 +30,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            // Row Level Security - Users can only access their own games
-            entity.HasQueryFilter(g => g.UserId == GetCurrentUserIdInt());
+            // Row Level Security removed - handled in service layer
         });
 
         // Configure Invite entity
@@ -49,8 +48,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                   .HasForeignKey(e => e.GameId)
                   .OnDelete(DeleteBehavior.SetNull);
 
-            // Row Level Security - Users can only access invites they sent
-            entity.HasQueryFilter(i => i.FromUserId == GetCurrentUserIdInt());
+            // Row Level Security removed - handled in service layer
         });
 
         // Enable Row Level Security for PostgreSQL

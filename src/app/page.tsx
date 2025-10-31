@@ -682,13 +682,15 @@ export default function HomePage() {
                       if (status.type === 'winner') {
                         const rawWinner = status.player;
                         winnerVal = (rawWinner && signMap[rawWinner]) ? signMap[rawWinner] : rawWinner;
+                      } else if (status.type === 'draw') {
+                        winnerVal = 'Draw';
                       }
 
                       const payload = {
                         name,
                         players,
                         HumanPlayer: humanPlayer,
-                        Moves: movesPayload,
+                        Moves: JSON.stringify(movesPayload),
                         Winner: winnerVal,
                       };
                       try {

@@ -78,7 +78,7 @@ public class InviteService : IInviteService
         {
             Id = invite.Id,
             FromUserId = invite.FromUserId,
-            FromUserEmail = invite.FromUser.Email,
+            FromUserEmail = "", // Will be set by the controller after fetching user
             ToEmail = invite.ToEmail,
             GameId = invite.GameId,
             Status = invite.Status,
