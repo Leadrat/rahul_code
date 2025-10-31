@@ -91,13 +91,17 @@ export default function Notifications({
               return (
                 <div key={String(inv.id)} style={{ padding: 8, borderRadius: 6, border: '1px solid rgba(255,255,255,0.02)', marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: 13 }}><strong>Invite</strong> — {inv.from_user_email || (inv.from_user_id ? `from ${inv.from_user_id}` : '')}</div>
+                    <div style={{ fontSize: 13 }}>
+                      <strong>Invite from:</strong> {inv.from_user_email || (inv.from_user_id ? `User ${inv.from_user_id}` : 'Unknown')}
+                    </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <div style={{ fontSize: 12, color: senderOnline ? '#0f0' : '#f33' }}>Sender: {senderOnline ? 'online' : 'offline'}</div>
                       <div style={{ fontSize: 12, color: receiverOnline ? '#0f0' : '#f33' }}>You: {receiverOnline ? 'online' : 'offline'}</div>
                     </div>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>{inv.to_email}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    <strong>Sent to:</strong> {inv.to_email}
+                  </div>
                   {inv.message && <div style={{ marginTop: 6, fontSize: 13 }}>{inv.message}</div>}
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                     <button onClick={() => onAccept?.(inv)} style={{ padding: '6px 8px' }} disabled={!canAccept} title={!canAccept ? 'Both players must be online to accept and start' : 'Accept invite'}>Accept</button>

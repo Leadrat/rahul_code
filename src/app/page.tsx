@@ -53,8 +53,7 @@ export default function HomePage() {
     try {
       if (!gameId) return;
       const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
-  const backend = '/api';
-      const res = await fetch(`${backend}/api/games/${encodeURIComponent(String(gameId))}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`http://localhost:5281/api/games/${encodeURIComponent(String(gameId))}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) return;
       const body = await res.json().catch(() => null);
       const state = body && (body.game || body.state || body);
@@ -99,6 +98,23 @@ export default function HomePage() {
     }
   }
 
+  // fetch existing invites from backend
+  async function loadInvitesFromServer() {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
+      if (!token) return;
+      const res = await fetch('http://localhost:5281/api/invites', { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      const body = await res.json().catch(() => []);
+      console.log('📋 Loaded invites from backend:', body);
+      if (Array.isArray(body)) {
+        setInvites(body);
+      }
+    } catch (e) {
+      // ignore load errors
+    }
+  }
+
   // verify user info with server to detect admin role
   useEffect(() => {
     (async () => {
@@ -115,6 +131,32 @@ export default function HomePage() {
       }
     })();
   }, [userEmail]);
+
+  // load invites when user is authenticated
+  useEffect(() => {
+    if (userEmail) {
+      loadInvitesFromServer();
+    }
+  }, [userEmail]);
+
+  // Debug function to check online users
+  function checkOnlineUsers() {
+    console.log('🔍 checkOnlineUsers called');
+    const sock = socketRef.current;
+    console.log('🔍 Socket status:', sock?.connected ? 'connected' : 'disconnected');
+    
+    if (sock && sock.connected) {
+      console.log('🔍 Emitting getOnlineUsers event');
+      setLoadingBackendUsers(true);
+      setBackendOnlineUsers([]); // Clear previous results
+      setBackendUserDetails([]); // Clear previous user details
+      sock.emit('getOnlineUsers');
+      setShowOnlineUsers(true);
+    } else {
+      console.log('Socket not connected');
+      setShowOnlineUsers(true);
+    }
+  }
 
   function handleLogout() {
     try { localStorage.removeItem('tictactoe:token'); } catch (e) { /* ignore */ }
@@ -138,12 +180,17 @@ export default function HomePage() {
   const [winningLine, setWinningLine] = useState<number[] | null>(null);
   const [moveHistory, setMoveHistory] = useState<Move[]>([]);
   const [invites, setInvites] = useState<any[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [currentGameId, setCurrentGameId] = useState<string | null>(null);
   const [currentGamePlayers, setCurrentGamePlayers] = useState<string[] | null>(null);
   const currentGamePlayersRef = useRef<string[] | null>(null);
   const [showGameStart, setShowGameStart] = useState(false);
   const [gameStartPayload, setGameStartPayload] = useState<any | null>(null);
   const [currentGameNextEmail, setCurrentGameNextEmail] = useState<string | null>(null);
+  const [showOnlineUsers, setShowOnlineUsers] = useState(false);
+  const [backendOnlineUsers, setBackendOnlineUsers] = useState<string[]>([]);
+  const [backendUserDetails, setBackendUserDetails] = useState<Array<{id: string, email: string}>>([]);
+  const [loadingBackendUsers, setLoadingBackendUsers] = useState(false);
   const socketRef = useGameSocket({
     onInvite: (invite: any) => {
       setInvites((s) => [invite, ...s]);
@@ -154,95 +201,275 @@ export default function HomePage() {
     },
     onPresence: (p: any) => {
       // eslint-disable-next-line no-console
-      console.info('presence changed', p);
-    },
-    onMove: (payload: any) => {
-      try {
-        const { gameId, state, move, playerEmail } = payload || {};
-        if (!gameId || !state) return;
-        // apply moves to board and map players to X/O
-        const squaresArr = Array(9).fill(null) as SquareValue[];
-        const moves = state.moves || [];
-        const players = Array.isArray(state.players) ? state.players : [];
-        const signMap: Record<string, Player> = {};
-        if (players.length > 0) {
-          const p0 = players[0] && String(players[0]).toLowerCase();
-          const p1 = players[1] && String(players[1]).toLowerCase();
-          if (p0) signMap[p0] = 'X';
-          if (p1) signMap[p1] = 'O';
-        }
-
-        moves.forEach((m: any) => {
-          const mv = m.move || m;
-          const pos = mv.position ?? mv.index ?? mv.idx;
-          let sign = mv.sign ?? mv.player ?? mv.playerSign ?? null;
-          if (!sign && (m.playerEmail || mv.playerEmail)) {
-            const email = String(m.playerEmail || mv.playerEmail).toLowerCase();
-            sign = signMap[email] || null;
+      console.info('presence changed event received:', p);
+      const { userId, online } = p;
+      if (userId) {
+        setOnlineUsers(prev => {
+          const newSet = new Set(prev);
+          if (online) {
+            newSet.add(userId);
+            console.log(`✅ User ${userId} is now online. Total online users:`, newSet);
+            console.log(`✅ Online users array:`, Array.from(newSet));
+          } else {
+            newSet.delete(userId);
+            console.log(`❌ User ${userId} is now offline. Total online users:`, newSet);
+            console.log(`❌ Online users array:`, Array.from(newSet));
           }
-          if (typeof pos === 'number' && sign) squaresArr[pos] = sign as any;
+          return newSet;
         });
-
-        setSquares(squaresArr);
-        setMoveHistory(moves.map((m: any, idx: number) => {
-          const email = m.playerEmail || (m.move && m.move.player) || m.player || null;
-          const emailNorm = email ? String(email).toLowerCase() : null;
-          const playerSign = emailNorm && signMap[emailNorm] ? signMap[emailNorm] : (m.player || (m.move && m.move.player) || 'X');
-          return { player: playerSign as Player, position: (m.move && (m.move.position ?? m.move.index)) ?? m.position ?? 0, timestamp: new Date(m.createdAt || m.at || Date.now()), moveNumber: idx + 1 };
-        }));
-
-        // populate players if present
-        if (players && Array.isArray(players) && players.length > 0) {
-          const normalizedPlayers = players.map((p: any) => p && String(p).toLowerCase());
-          setCurrentGamePlayers(normalizedPlayers);
-          currentGamePlayersRef.current = normalizedPlayers;
-          const last = moves.length ? moves[moves.length - 1] : null;
-          const lastEmail = last && (last.playerEmail || last.player);
-          const next = players.find((p: any) => p !== lastEmail) || null;
-          setCurrentGameNextEmail(next);
-          // set currentPlayer to next sign based on moves count
-          const nextSign: Player = moves.length % 2 === 0 ? 'X' : 'O';
-          setCurrentPlayer(nextSign);
-          // set humanPlayer if current user is one of the players
-          const me = userEmailRef.current;
-          if (me) {
-            const myIndex = normalizedPlayers.indexOf(me);
-            if (myIndex === 0) setHumanPlayer('X');
-            else if (myIndex === 1) setHumanPlayer('O');
-          }
-        }
-      } catch (e) {
-        // ignore
+      } else {
+        console.warn('⚠️ Presence event received without userId:', p);
       }
     },
-    onGameState: (state: any) => {
-      // eslint-disable-next-line no-console
-      console.info('game state', state);
-    }
-    ,
-    onGameStarted: (payload: any) => {
-      try {
-        const gid = payload && payload.gameId;
-        if (!gid) return;
-        const starter = payload && payload.startedBy && String(payload.startedBy).toLowerCase();
-        const me = userEmailRef.current;
-        // if I am the one who started the game (starter), auto-join. Otherwise show popup and let sender click Start.
-        if (starter && me && starter === me) {
-          const sock = socketRef.current;
-          sock?.emit('game:join', { gameId: String(gid) });
-          setCurrentGameId(String(gid));
-          // load authoritative state from server DB if available
-          loadGameFromServer(String(gid));
-          setGameStartPayload(payload);
-          setShowGameStart(true);
-        } else {
-          // show popup to prompt the other participant (sender) to start/join
-          setGameStartPayload(payload);
-          setShowGameStart(true);
+    onOnlineUsers: (data: any) => {
+      console.log('🔥 onOnlineUsers handler called!', data);
+      const users = data.users || [];
+      const userDetails = data.userDetails || [];
+      console.log('🔥 Setting backend online users to:', users);
+      console.log('🔥 Setting backend user details to:', userDetails);
+      setBackendOnlineUsers(users);
+      setBackendUserDetails(userDetails);
+      setLoadingBackendUsers(false);
+    },
+    onGameStarted: (data: any) => {
+      console.log('Game started via SignalR:', data);
+      // Set the current game ID so move events can be matched
+      setCurrentGameId(String(data.gameId));
+      console.log('🎮 Set currentGameId to:', String(data.gameId));
+      
+      // Show game start popup to both players
+      setGameStartPayload({
+        inviteId: data.inviteId,
+        players: data.players,
+        startedBy: data.startedBy,
+        gameId: data.gameId
+      });
+      setShowGameStart(true);
+    },
+    onMove: (data: any) => {
+      console.log('📡 Move applied via SignalR:', data);
+      console.log('📡 Current game ID:', currentGameId);
+      console.log('📡 Data game ID:', data.gameId);
+      
+      // Fallback: If currentGameId is null but we're receiving moves, set it
+      if (!currentGameId && data.gameId) {
+        console.log('📡 Fallback: Setting currentGameId from move event:', data.gameId);
+        setCurrentGameId(String(data.gameId));
+        // Don't process this move immediately - wait for state to update
+        return;
+      }
+      
+      // Only process if this move is for the current game
+      if (data.gameId === currentGameId) {
+        const move = data.move;
+        console.log('📡 Full move object:', move);
+        console.log('📡 Move position:', move?.position);
+        console.log('📡 Move sign/player:', move?.sign || move?.player);
+        console.log('📡 Current squares before update:', squares);
+        
+        const position = move?.position;
+        const player = move?.sign || move?.player; // Handle both 'sign' and 'player' fields
+        
+        if (position === undefined || player === undefined) {
+          console.error('📡 Invalid move data - missing position or player:', move);
+          return;
         }
-      } catch (e) { /* ignore */ }
+        
+        // Update the board with the received move
+        setSquares(prevSquares => {
+          console.log('📡 setSquares called with prevSquares:', prevSquares);
+          const newSquares = [...prevSquares];
+          console.log('📡 Square at position', position, 'before update:', newSquares[position]);
+          
+          if (newSquares[position] === null) {  // Only update if the square is empty
+            const playerSymbol = player === 'X' ? 'X' : 'O';
+            newSquares[position] = playerSymbol;
+            console.log('📡 Updated squares array:', newSquares);
+            console.log('📡 Square at position', position, 'after update:', newSquares[position]);
+            console.log('📡 About to return newSquares from setSquares');
+          } else {
+            console.log('📡 Square already occupied, not updating. Square value:', newSquares[position]);
+          }
+          return newSquares;
+        });
+        
+        // Add to move history
+        const newMove: Move = {
+          player: player === 'X' ? 'X' : 'O',
+          position: position,
+          timestamp: new Date(),
+          moveNumber: moveHistory.length + 1,
+          commentary: generateCommentaryForMove(position, player === 'X' ? 'X' : 'O')
+        };
+        
+        setMoveHistory(prev => [...prev, newMove]);
+        console.log('📡 Added to move history:', newMove);
+      } else {
+        console.log('📡 Move is for different game, ignoring:', { dataGameId: data.gameId, currentGameId });
+      }
     }
   });
+
+  // Auto-fetch backend online users to keep invite status in sync
+  useEffect(() => {
+    const sock = socketRef.current;
+    if (sock && sock.connected && userEmail) {
+      console.log('🔄 Auto-fetching backend online users for invite status sync');
+      setLoadingBackendUsers(true);
+      setBackendUserDetails([]); // Clear previous results
+      sock.emit('getOnlineUsers');
+    }
+  }, [userEmail, invites.length]); // Re-fetch when user logs in or invites change
+
+  // Debug: Monitor currentGameId changes
+  useEffect(() => {
+    console.log('🔍 currentGameId changed to:', currentGameId);
+  }, [currentGameId]);
+
+  // Debug: Monitor squares changes
+  useEffect(() => {
+    console.log('🔍 squares changed to:', squares);
+  }, [squares]);
+
+  // Add online status to invites using backend data
+  const invitesWithStatus = useMemo(() => {
+    console.log('🔍 Calculating invite status. Backend online users:', backendUserDetails);
+    console.log('🔍 Total invites to process:', invites.length);
+    
+    const result = invites.map((inv) => {
+      // Check if sender is online using backend user details
+      const senderOnline = inv.from_user_id && backendUserDetails.some(user => user.id === String(inv.from_user_id));
+      const receiverOnline = true; // Current user is online since they're viewing this
+      
+      console.log(`🔍 Invite ${inv.id}: from_user_id=${inv.from_user_id}, senderOnline=${senderOnline}`);
+      console.log(`🔍 - Backend users with IDs:`, backendUserDetails.map(u => u.id));
+      console.log(`🔍 - Is sender in backend online users?`, senderOnline);
+      
+      return {
+        ...inv,
+        senderOnline,
+        receiverOnline: true // Current user is online since they're viewing this
+      };
+    });
+    return result;
+  }, [invites, backendUserDetails]);
+
+  // load game state from backend and apply to UI (used when a game is created in DB)
+  async function loadGameFromServer(gameId: string | null) {
+    try {
+      console.log('🎮 Loading game from server, gameId:', gameId);
+      if (!gameId) return;
+      
+      // Set the current game ID so move events can be matched
+      setCurrentGameId(String(gameId));
+      console.log('🎮 Set currentGameId to:', String(gameId));
+      
+      const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
+      console.log('🎮 Making request to: http://localhost:5281/api/games/' + gameId);
+      const res = await fetch(`http://localhost:5281/api/games/${encodeURIComponent(String(gameId))}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      console.log('🎮 Game load response status:', res.status);
+      if (!res.ok) {
+        console.log('🎮 Game load failed, status:', res.status);
+        return;
+      }
+      const body = await res.json().catch(() => null);
+      console.log('🎮 Game load response body:', body);
+      const state = body && (body.game || body.state || body);
+      if (!state) {
+        console.log('🎮 No game state found in response');
+        return;
+      }
+      // apply moves to board
+      const squaresArr = Array(9).fill(null) as SquareValue[];
+      const moves = state.moves || [];
+      const players = Array.isArray(state.players) ? state.players : [];
+      const signMap: Record<string, Player> = {};
+      if (players.length > 0) {
+        const p0 = players[0] && String(players[0]).toLowerCase();
+        const p1 = players[1] && String(players[1]).toLowerCase();
+        if (p0) signMap[p0] = 'X';
+        if (p1) signMap[p1] = 'O';
+      }
+      moves.forEach((m: any) => {
+        const mv = m.move || m;
+        const pos = mv.position ?? mv.index ?? mv.idx;
+        let sign = mv.sign ?? mv.player ?? mv.playerSign ?? null;
+        if (!sign && (m.playerEmail || mv.playerEmail)) {
+          const email = String(m.playerEmail || mv.playerEmail).toLowerCase();
+          sign = signMap[email] || null;
+        }
+        if (typeof pos === 'number' && sign) squaresArr[pos] = sign as any;
+      });
+
+      setSquares(squaresArr);
+      setMoveHistory(moves.map((m: any, idx: number) => {
+        const email = m.playerEmail || (m.move && m.move.player) || m.player || null;
+        const emailNorm = email ? String(email).toLowerCase() : null;
+        const playerSign = emailNorm && signMap[emailNorm] ? signMap[emailNorm] : (m.player || (m.move && m.move.player) || 'X');
+        return { player: playerSign as Player, position: (m.move && (m.move.position ?? m.move.index)) ?? m.position ?? 0, timestamp: new Date(m.createdAt || m.at || Date.now()), moveNumber: idx + 1 };
+      }));
+
+      // populate players if present
+      if (players && Array.isArray(players) && players.length > 0) {
+        const normalizedPlayers = players.map((p: any) => p && String(p).toLowerCase());
+        setCurrentGamePlayers(normalizedPlayers);
+        currentGamePlayersRef.current = normalizedPlayers;
+        const last = moves.length ? moves[moves.length - 1] : null;
+        const lastEmail = last && (last.playerEmail || last.player);
+        const next = players.find((p: any) => p !== lastEmail) || null;
+        setCurrentGameNextEmail(next);
+        // set currentPlayer to next sign based on moves count
+        const nextSign: Player = moves.length % 2 === 0 ? 'X' : 'O';
+        setCurrentPlayer(nextSign);
+        // set humanPlayer if current user is one of the players
+        const me = userEmailRef.current;
+        if (me) {
+          const myIndex = normalizedPlayers.indexOf(me);
+          if (myIndex === 0) setHumanPlayer('X');
+          else if (myIndex === 1) setHumanPlayer('O');
+        }
+      }
+    } catch (e) {
+      // ignore load errors
+    }
+  }
+
+  // fetch existing invites from backend
+  async function loadInvitesFromServer() {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null;
+      if (!token) return;
+      const res = await fetch('http://localhost:5281/api/invites', { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      const body = await res.json().catch(() => []);
+      console.log('📋 Loaded invites from backend:', body);
+      if (Array.isArray(body)) {
+        setInvites(body);
+      }
+    } catch (e) {
+      // ignore load errors
+    }
+  }
+
+  // Debug function to check online users
+  function checkOnlineUsers() {
+    console.log('🔍 checkOnlineUsers called');
+    const sock = socketRef.current;
+    console.log('🔍 Socket status:', sock?.connected ? 'connected' : 'disconnected');
+    
+    if (sock && sock.connected) {
+      console.log('🔍 Emitting getOnlineUsers event');
+      setLoadingBackendUsers(true);
+      setBackendOnlineUsers([]); // Clear previous results
+      setBackendUserDetails([]); // Clear previous results
+      sock.emit('getOnlineUsers');
+      setShowOnlineUsers(true);
+    } else {
+      console.log('Socket not connected');
+      setShowOnlineUsers(true);
+    }
+  }
+
   const [replayMode, setReplayMode] = useState(false);
   const [replayIndex, setReplayIndex] = useState(0);
   const [replayIntervalId, setReplayIntervalId] = useState<number | null>(null);
@@ -311,6 +538,7 @@ export default function HomePage() {
     const sock = socketRef.current;
     if (currentGameId && sock && sock.connected && userEmail) {
       const payload = { gameId: currentGameId, move: { position: index, sign: currentPlayer }, playerEmail: userEmail };
+      console.log('🎮 Sending move to server:', payload);
       sock.emit('move', payload);
       return; // wait for server to emit move:applied which will update UI
     }
@@ -486,25 +714,43 @@ export default function HomePage() {
                 <div style={{ position: 'fixed', top: 12, right: 64, display: 'flex', gap: 12, alignItems: 'center', zIndex: 60 }}>
                   <div className={styles.notifNote} title="Invite friends to play via notifications">🔔 Invite friends to play on notification click</div>
                   <Notifications
-                    invites={invites}
+                    invites={invitesWithStatus}
                     onAccept={async (inv: any) => {
+                    console.log('🎯 Accepting invite:', inv);
                     try {
                       const token = localStorage.getItem('tictactoe:token');
-                      const res = await fetch(`/api/invites/${inv.id}/respond`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ response: 'accept' }) });
+                      const res = await fetch(`http://localhost:5281/api/invites/${inv.id}/respond`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ response: 'accept' }) });
+                      console.log('🎯 Accept response status:', res.status);
                       const body = await res.json().catch(() => ({}));
+                      console.log('🎯 Accept response body:', body);
                       if (res.ok) {
                         setInvites((s) => s.filter(i => i.id !== inv.id));
                         const gid = body && (body.gameId || body.game_id);
+                        console.log('🎯 Game ID from response:', gid);
                         if (gid) {
                           const sock = socketRef.current;
                           sock?.emit('game:join', { gameId: String(gid) });
                           setCurrentGameId(String(gid));
-                          // load authoritative state from DB
-                          loadGameFromServer(String(gid));
+                          console.log('🎯 Set currentGameId in accept handler to:', String(gid));
+                          
+                          // Add small delay to ensure game is fully created in DB
+                          setTimeout(() => {
+                            console.log('🎯 About to call loadGameFromServer with gameId:', gid);
+                            loadGameFromServer(String(gid));
+                          }, 500);
                         } else if (body && body.gameCreated === false && body.players) {
                           // couldn't auto-create; show the same game-start popup so the recipient or other player can start the game
-                          setGameStartPayload({ inviteId: inv.id, players: body.players, startedBy: body.from_user_email || null });
+                          setGameStartPayload({ inviteId: inv.id, players: body.players, startedBy: body.from_user_email || null, gameId: body.gameId });
                           setShowGameStart(true);
+                        }
+                      } else {
+                        // Handle errors - if invite not found, remove it from UI
+                        if (res.status === 404) {
+                          console.log('🗑️ Removing stale invite from UI:', inv.id);
+                          setInvites((s) => s.filter(i => i.id !== inv.id));
+                        } else {
+                          console.error('Failed to accept invite:', body);
+                          alert(body?.message || 'Failed to accept invite');
                         }
                       }
                     } catch (e) { /* ignore */ }
@@ -512,18 +758,84 @@ export default function HomePage() {
                   onDecline={async (inv: any) => {
                     try {
                       const token = localStorage.getItem('tictactoe:token');
-                      await fetch(`/api/invites/${inv.id}/respond`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ response: 'decline' }) });
-                      setInvites((s) => s.filter(i => i.id !== inv.id));
+                      const res = await fetch(`http://localhost:5281/api/invites/${inv.id}/respond`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ response: 'decline' }) });
+                      if (res.ok) {
+                        setInvites((s) => s.filter(i => i.id !== inv.id));
+                      } else if (res.status === 404) {
+                        // Handle stale invite - remove from UI
+                        console.log('🗑️ Removing stale invite from UI (decline):', inv.id);
+                        setInvites((s) => s.filter(i => i.id !== inv.id));
+                      }
                     } catch (e) { }
                   }}
                   onSendInvite={async ({ toEmail, message }) => {
                     const token = localStorage.getItem('tictactoe:token');
-                    const res = await fetch('/api/invites', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ toEmail, message }) });
+                    const res = await fetch('http://localhost:5281/api/invites', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ toEmail, message }) });
                     if (!res.ok) throw new Error('invite failed');
                     const body = await res.json().catch(() => ({}));
                     // Do not add outgoing invites to the local notifications list — only receivers should see invites
                   }}
                   />
+                  {/* Online Users popup */}
+                  {showOnlineUsers && (
+                    <div style={{ position: 'absolute', top: 56, right: 0, width: 320, background: 'var(--card-bg, #0b0b0b)', border: '1px solid rgba(255,255,255,0.06)', padding: 12, borderRadius: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <div>
+                          <strong>📡 Online Users</strong>
+                        </div>
+                        <button 
+                          onClick={() => setShowOnlineUsers(false)}
+                          style={{ 
+                            background: 'none', 
+                            border: 'none', 
+                            color: '#999', 
+                            fontSize: '18px', 
+                            cursor: 'pointer',
+                            padding: '0 4px'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+                          <strong>Backend State ({loadingBackendUsers ? '...' : backendUserDetails.length} users):</strong>
+                        </div>
+                        <div style={{ 
+                          background: 'rgba(255,255,255,0.02)', 
+                          padding: 8, 
+                          borderRadius: 4, 
+                          fontSize: 12,
+                          maxHeight: '120px',
+                          overflowY: 'auto'
+                        }}>
+                          {loadingBackendUsers ? (
+                            <div style={{ color: '#ff0', textAlign: 'center', padding: '20px 0' }}>
+                              ⏳ Loading backend users...
+                            </div>
+                          ) : backendUserDetails.length > 0 ? (
+                            backendUserDetails.map(user => (
+                              <div key={user.id} style={{ padding: '2px 0', color: '#0f0' }}>
+                                ✅ {user.email}
+                              </div>
+                            ))
+                          ) : (
+                            <div style={{ color: '#f33' }}>❌ No users online</div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>
+                        {socketRef.current?.connected ? (
+                          <span style={{ color: '#0f0' }}>🟢 SignalR Connected</span>
+                        ) : (
+                          <span style={{ color: '#f33' }}>🔴 SignalR Disconnected</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Game started popup */}
                   {showGameStart && gameStartPayload && (() => {
                     const starter = gameStartPayload.startedBy && String(gameStartPayload.startedBy).toLowerCase();
@@ -643,6 +955,9 @@ export default function HomePage() {
                 <div className={styles.actions}>
                   <button className={styles.reset} onClick={() => startNewLocalGame()} type="button">
                     🔄 New Game
+                  </button>
+                  <button onClick={checkOnlineUsers} style={{ padding: '8px 12px', fontSize: '12px', background: '#333', color: '#fff', border: '1px solid #555', borderRadius: '4px' }}>
+                    📡 Check Online Users
                   </button>
                 </div>
                 <div style={{ marginTop: 8, border: '1px solid rgba(0,0,0,0.08)', padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.02)' }}>

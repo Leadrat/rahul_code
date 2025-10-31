@@ -7,10 +7,12 @@ namespace GameBackend.Application.Services;
 public class GameService : IGameService
 {
     private readonly IGameRepository _gameRepository;
+    private readonly IUserRepository _userRepository;
 
-    public GameService(IGameRepository gameRepository)
+    public GameService(IGameRepository gameRepository, IUserRepository userRepository)
     {
         _gameRepository = gameRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<IEnumerable<GameDto>> GetUserGamesAsync(int userId)
@@ -22,7 +24,23 @@ public class GameService : IGameService
     public async Task<GameDto?> GetGameByIdAsync(int id, int userId)
     {
         var game = await _gameRepository.GetByIdAsync(id);
-        if (game == null || game.UserId != userId)
+        if (game == null)
+        {
+            return null;
+        }
+
+        // Get the user making the request
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            return null;
+        }
+
+        // Allow access if user is the creator OR one of the players
+        var isCreator = game.UserId == userId;
+        var isPlayer = game.Players != null && game.Players.Any(p => p.Equals(user.Email, StringComparison.OrdinalIgnoreCase));
+
+        if (!isCreator && !isPlayer)
         {
             return null;
         }

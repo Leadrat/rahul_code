@@ -23,10 +23,8 @@ interface UserType {
 
 export default function AdminPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('dhrubrahul11@gmail.com');
-  const [password, setPassword] = useState('12345678');
-  const [token, setToken] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('tictactoe:adminToken') : null);
-  const [userToken] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null);
+  const [token, setToken] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('tictactoe:token') : null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null); // null = loading, false = not admin, true = admin
   const [users, setUsers] = useState<UserType[] | null>(null);
   const [games, setGames] = useState<GameType[] | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
@@ -40,48 +38,46 @@ export default function AdminPage() {
   const [inlineReplayTimerId, setInlineReplayTimerId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function login(e?: React.FormEvent) {
-    if (e) e.preventDefault();
-    setLoading(true);
-    try {
-  const backend = 'http://localhost:5281';
-      const res = await fetch(`${backend}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || 'login failed');
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        const authToken = token;
+        if (!authToken) {
+          setIsAdmin(false);
+          return;
+        }
+
+        const backend = 'http://localhost:5281';
+        const res = await fetch(`${backend}/api/auth/me`, { headers: { Authorization: `Bearer ${authToken}` } });
+        if (!res.ok) {
+          setIsAdmin(false);
+          return;
+        }
+        const body = await res.json().catch(() => ({}));
+        if (body && body.isAdmin) {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+        }
+      } catch (err) {
+        console.error('Failed to check admin status:', err);
+        setIsAdmin(false);
       }
-      const body = await res.json();
-      
-      if (!body.user?.isAdmin) {
-        alert('This account is not an admin. Please use dhrubrahul11@gmail.com with password 12345678');
-        return;
-      }
-      
-      setToken(body.token);
-      localStorage.setItem('tictactoe:adminToken', body.token);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
-      alert(`Login failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setLoading(false);
-    }
-  }
+    };
+    checkAdminStatus();
+  }, [token]);
 
   async function fetchData() {
     setLoading(true);
     try {
-      const authToken = token || userToken;
+      const authToken = token;
       if (!authToken) {
         alert('Please login first');
         return;
       }
       
       const backend = 'http://localhost:5281';
-      
-      // Debug: log which token is being used
-      console.log('Using token type:', token ? 'admin token' : 'user token');
-      console.log('Token length:', authToken.length);
       
       // Fetch users and games in parallel
       const [usersRes, gamesRes] = await Promise.all([
@@ -91,22 +87,20 @@ export default function AdminPage() {
 
       if (!usersRes.ok) {
         if (usersRes.status === 401) {
-          // Clear invalid tokens and prompt for admin login
+          // Clear invalid token and prompt for login
           localStorage.removeItem('tictactoe:token');
-          localStorage.removeItem('tictactoe:adminToken');
-          setToken('');
-          alert('Access denied: You are not logged in as an admin.\n\nPlease use these credentials:\nEmail: dhrubrahul11@gmail.com\nPassword: 12345678\n\nYour session has been cleared. Please login again.');
+          setToken(null);
+          alert('Access denied: You are not logged in as an admin.\n\nPlease login with your game credentials and try again.');
           return;
         }
         throw new Error('Failed to fetch users');
       }
       if (!gamesRes.ok) {
         if (gamesRes.status === 401) {
-          // Clear invalid tokens and prompt for admin login
+          // Clear invalid token and prompt for login
           localStorage.removeItem('tictactoe:token');
-          localStorage.removeItem('tictactoe:adminToken');
-          setToken('');
-          alert('Access denied: You are not logged in as an admin.\n\nPlease use these credentials:\nEmail: dhrubrahul11@gmail.com\nPassword: 12345678\n\nYour session has been cleared. Please login again.');
+          setToken(null);
+          alert('Access denied: You are not logged in as an admin.\n\nPlease login with your game credentials and try again.');
           return;
         }
         throw new Error('Failed to fetch games');
@@ -136,7 +130,7 @@ export default function AdminPage() {
   async function fetchUserGames(userId: string) {
     setLoading(true);
     try {
-      const authToken = token || userToken;
+      const authToken = token;
       if (!authToken) return alert('Login first');
   const backend = 'http://localhost:5281';
       const res = await fetch(`${backend}/api/admin/players/${userId}/games`, { headers: { Authorization: `Bearer ${authToken}` } });
@@ -154,7 +148,7 @@ export default function AdminPage() {
   async function fetchGameById(gameId: string) {
     setLoading(true);
     try {
-      const authToken = token || userToken;
+      const authToken = token;
       if (!authToken) return alert('Login first');
   const backend = 'http://localhost:5281';
       const res = await fetch(`${backend}/api/admin/games/${gameId}`, { headers: { Authorization: `Bearer ${authToken}` } });
@@ -234,7 +228,7 @@ export default function AdminPage() {
     if (!confirm('Delete this saved game?')) return;
     setLoading(true);
     try {
-      const authToken = token || userToken;
+      const authToken = token;
       if (!authToken) return alert('Login first');
   const backend = 'http://localhost:5281';
       const res = await fetch(`${backend}/api/admin/games/${gameId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${authToken}` } });
@@ -254,34 +248,10 @@ export default function AdminPage() {
   // (inline replay handled separately via startInlineReplay/clearInlineReplay)
 
   useEffect(() => {
-    // If we don't have an admin token saved but the user is logged in, check if that user is the admin
-    // and reuse the regular user token for admin access so the user is not asked to login again.
-    const tryPromote = async () => {
-      try {
-        if (!token && userToken) {
-          const backend = 'http://localhost:5281';
-          const res = await fetch(`${backend}/api/auth/me`, { headers: { Authorization: `Bearer ${userToken}` } });
-          if (res.ok) {
-            const body = await res.json().catch(() => ({}));
-            if (body && body.isAdmin) {
-              // mark admin token and persist so future navigations won't prompt
-              setToken(userToken);
-              try { localStorage.setItem('tictactoe:adminToken', userToken); } catch (e) { /* ignore */ }
-            }
-          }
-        }
-      } catch (err) {
-        // ignore
-      }
-    };
-    tryPromote();
-  }, []);
-
-  useEffect(() => {
-    if (token || userToken) {
+    if (token && isAdmin === true) {
       fetchData();
     }
-  }, [token, userToken]);
+  }, [token, isAdmin]);
 
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleString();
@@ -291,38 +261,48 @@ export default function AdminPage() {
     <main className={styles.container}>
       <h1 className={styles.heading} style={{ color: '#e9ecece2' }}>Admin Panel</h1>
       
-      {!token && (
-        <form onSubmit={login} className={styles.loginForm}>
-          <div className={styles.formGroup}>
-            <label className={styles.label}>Email</label>
-            <input 
-              className={styles.input}
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label className={styles.label}>Password</label>
-            <input 
-              type="password" 
-              className={styles.input}
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-            />
-          </div>
-          <button type="submit" className={styles.button} disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
+      {/* Show loading spinner while checking admin status */}
+      {isAdmin === null && (
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <div className={styles.spinner}></div>
+          <p>Checking admin access...</p>
+        </div>
       )}
 
-      {token && (
+      {/* Show login prompt when not authenticated */}
+      {isAdmin === false && !token && (
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <p>Please <a href="/" style={{ color: '#0070f3', textDecoration: 'underline' }}>login to the game</a> first to access the admin panel.</p>
+          <button 
+            className={styles.button}
+            onClick={() => router.push('/')}
+          >
+            Go to Login
+          </button>
+        </div>
+      )}
+
+      {/* Show access denied when authenticated but not admin */}
+      {isAdmin === false && token && (
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <p>Access denied. Your account does not have admin privileges.</p>
+          <button 
+            className={styles.button}
+            onClick={() => router.push('/')}
+          >
+            Back to Game
+          </button>
+        </div>
+      )}
+
+      {/* Show admin panel when authenticated and admin */}
+      {isAdmin === true && (
         <div>
           <div className={styles.actionRow} style={{ marginBottom: '1.5rem' }}>
             <button 
               className={styles.button}
               onClick={() => { 
-                localStorage.removeItem('tictactoe:adminToken'); 
+                localStorage.removeItem('tictactoe:token'); 
                 setToken(null); 
                 setUsers(null); 
               }}
