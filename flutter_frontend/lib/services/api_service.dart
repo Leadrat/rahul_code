@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'storage_service.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://bc63c715d5f7.ngrok-free.app/api';
+  static const String baseUrl = 'https://5629d3d33922.ngrok-free.app/api';
   
   static Future<Map<String, String>> _getHeaders({bool includeAuth = true}) async {
     final headers = {'Content-Type': 'application/json'};
@@ -101,16 +101,27 @@ class ApiService {
   }
   
   static Future<Map<String, dynamic>> createGame(Map<String, dynamic> gameData) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/games'),
-      headers: await _getHeaders(),
-      body: jsonEncode(gameData),
-    );
+    print('💾 [API] Creating game with data: ${jsonEncode(gameData)}');
     
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to create game');
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/games'),
+        headers: await _getHeaders(),
+        body: jsonEncode(gameData),
+      );
+      
+      print('💾 [API] Create game response status: ${response.statusCode}');
+      print('💾 [API] Create game response body: ${response.body}');
+      
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? error['title'] ?? 'Failed to create game: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ [API] Create game error: $e');
+      rethrow;
     }
   }
   

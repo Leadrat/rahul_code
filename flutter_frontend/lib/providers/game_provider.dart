@@ -84,9 +84,19 @@ class GameProvider with ChangeNotifier {
   }
   
   void applyRemoteMove(int position, String player) {
-    if (_squares[position] != null) return;
+    print('🎮 [REMOTE_MOVE] Applying remote move at position $position for player $player');
+    
+    if (_squares[position] != null) {
+      print('❌ [REMOTE_MOVE] Position $position already occupied');
+      return;
+    }
     
     _squares[position] = player;
+    print('✅ [REMOTE_MOVE] Square updated at position $position');
+    
+    // Update current player for next turn
+    _currentPlayer = player == 'X' ? 'O' : 'X';
+    print('🔄 [REMOTE_MOVE] Next player: $_currentPlayer');
     
     final move = Move(
       player: player,
@@ -95,16 +105,21 @@ class GameProvider with ChangeNotifier {
       moveNumber: _moveHistory.length + 1,
     );
     _moveHistory.add(move);
+    print('📝 [REMOTE_MOVE] Move added to history. Total moves: ${_moveHistory.length}');
     
     final result = calculateWinner(_squares);
     if (result != null) {
       _isGameOver = true;
       _winningLine = result['line'] as List<int>?;
+      print('🏆 [REMOTE_MOVE] Game over! Winner: $player');
     } else if (_squares.every((s) => s != null)) {
       _isGameOver = true;
+      print('🤝 [REMOTE_MOVE] Game over! Draw');
     }
     
+    print('🔔 [REMOTE_MOVE] Calling notifyListeners()');
     notifyListeners();
+    print('✅ [REMOTE_MOVE] Remote move applied successfully');
   }
   
   void resetGame({String? newHumanPlayer}) {
@@ -184,7 +199,11 @@ class GameProvider with ChangeNotifier {
   }
   
   void removeInvite(int inviteId) {
+    print('📤 [INVITE] Removing invite $inviteId from local state');
+    final countBefore = _invites.length;
     _invites.removeWhere((inv) => inv.id == inviteId);
+    final countAfter = _invites.length;
+    print('✅ [INVITE] Invite removed. Count: $countBefore → $countAfter');
     notifyListeners();
   }
   
@@ -204,8 +223,14 @@ class GameProvider with ChangeNotifier {
   }
   
   void setOnlineUserDetails(List<UserDetail> details) {
+    print('👥 [PROVIDER] Setting ${details.length} online users');
+    for (var user in details) {
+      print('👥 [PROVIDER] - ${user.email} (ID: ${user.id})');
+    }
     _onlineUserDetails = details;
+    print('👥 [PROVIDER] Notifying listeners...');
     notifyListeners();
+    print('✅ [PROVIDER] Online users updated');
   }
   
   void setGameStarted(int gameId, List<String> players) {

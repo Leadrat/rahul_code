@@ -106,10 +106,15 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade900,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Admin Panel'),
-        backgroundColor: Colors.black,
+        title: Row(
+          children: [
+            Icon(Icons.admin_panel_settings, color: Theme.of(context).primaryColor),
+            const SizedBox(width: 8),
+            const Text('Admin Panel'),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -133,7 +138,8 @@ class _AdminScreenState extends State<AdminScreen> {
                 children: [
                   // Players section
                   Card(
-                    color: Colors.grey.shade800,
+                    color: Theme.of(context).cardColor,
+                    elevation: 4,
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -141,12 +147,12 @@ class _AdminScreenState extends State<AdminScreen> {
                         children: [
                           Row(
                             children: [
-                              const Text(
+                              Text(
                                 'Players',
                                 style: TextStyle(
-                                  fontSize: 20,
+                                  fontSize: 22,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: Theme.of(context).textTheme.titleLarge?.color,
                                 ),
                               ),
                               const Spacer(),
@@ -160,7 +166,7 @@ class _AdminScreenState extends State<AdminScreen> {
                           ),
                           const SizedBox(height: 16),
                           if (_players.isEmpty)
-                            const Text('No players', style: TextStyle(color: Colors.white))
+                            Text('No players', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color))
                           else
                             SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
@@ -168,10 +174,10 @@ class _AdminScreenState extends State<AdminScreen> {
                                 headingRowColor: MaterialStateProperty.all(
                                   Colors.grey.shade700,
                                 ),
-                                columns: const [
-                                  DataColumn(label: Text('Player', style: TextStyle(color: Colors.white))),
-                                  DataColumn(label: Text('Status', style: TextStyle(color: Colors.white))),
-                                  DataColumn(label: Text('Games', style: TextStyle(color: Colors.white))),
+                                columns: [
+                                  DataColumn(label: Text('Player', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold))),
+                                  DataColumn(label: Text('Status', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold))),
+                                  DataColumn(label: Text('Games', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold))),
                                 ],
                                 rows: _players.map((player) {
                                   return DataRow(
@@ -188,9 +194,9 @@ class _AdminScreenState extends State<AdminScreen> {
                                           children: [
                                             Text(
                                               player['email'] ?? 'Unknown',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.bold,
-                                                color: Colors.white,
+                                                color: Theme.of(context).textTheme.bodyLarge?.color,
                                               ),
                                             ),
                                             Text(
@@ -215,14 +221,14 @@ class _AdminScreenState extends State<AdminScreen> {
                                               ),
                                             ),
                                             const SizedBox(width: 8),
-                                            const Text('Offline', style: TextStyle(color: Colors.white)),
+                                            Text('Offline', style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color)),
                                           ],
                                         ),
                                       ),
                                       DataCell(
                                         Text(
                                           '${player['gameCount'] ?? 0}',
-                                          style: const TextStyle(color: Colors.white),
+                                          style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
                                         ),
                                       ),
                                     ],
@@ -239,7 +245,8 @@ class _AdminScreenState extends State<AdminScreen> {
                   if (_selectedPlayer != null) ...[
                     const SizedBox(height: 16),
                     Card(
-                      color: Colors.grey.shade800,
+                      color: Theme.of(context).cardColor,
+                      elevation: 4,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -247,29 +254,33 @@ class _AdminScreenState extends State<AdminScreen> {
                           children: [
                             Row(
                               children: [
-                                Text(
-                                  'Games for ${_selectedPlayer['email']}',
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                Expanded(
+                                  child: Text(
+                                    'Games for ${_selectedPlayer['email']}',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).textTheme.titleLarge?.color,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                const Spacer(),
-                                TextButton(
+                                Text(
+                                  '${_selectedPlayerGames?.length ?? 0} saved',
+                                  style: TextStyle(
+                                    color: Theme.of(context).textTheme.bodySmall?.color,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.close),
                                   onPressed: () {
                                     setState(() {
                                       _selectedPlayer = null;
                                       _selectedPlayerGames = null;
                                     });
                                   },
-                                  child: const Text('Close'),
-                                ),
-                                Text(
-                                  '${_selectedPlayerGames?.length ?? 0} saved',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade400,
-                                  ),
+                                  tooltip: 'Close',
                                 ),
                               ],
                             ),
@@ -277,7 +288,7 @@ class _AdminScreenState extends State<AdminScreen> {
                             if (_loading)
                               const Center(child: CircularProgressIndicator())
                             else if (_selectedPlayerGames == null || _selectedPlayerGames!.isEmpty)
-                              const Text('No saved games', style: TextStyle(color: Colors.white))
+                              Text('No saved games', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color))
                             else
                               SingleChildScrollView(
                                 scrollDirection: Axis.horizontal,
@@ -285,12 +296,12 @@ class _AdminScreenState extends State<AdminScreen> {
                                   headingRowColor: MaterialStateProperty.all(
                                     Colors.grey.shade700,
                                   ),
-                                  columns: const [
-                                    DataColumn(label: Text('Date', style: TextStyle(color: Colors.white))),
-                                    DataColumn(label: Text('Name', style: TextStyle(color: Colors.white))),
-                                    DataColumn(label: Text('Players', style: TextStyle(color: Colors.white))),
-                                    DataColumn(label: Text('Winner', style: TextStyle(color: Colors.white))),
-                                    DataColumn(label: Text('Actions', style: TextStyle(color: Colors.white))),
+                                  columns: [
+                                    DataColumn(label: Text('Date', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold))),
+                                    DataColumn(label: Text('Name', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold))),
+                                    DataColumn(label: Text('Players', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold))),
+                                    DataColumn(label: Text('Winner', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold))),
+                                    DataColumn(label: Text('Actions', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold))),
                                   ],
                                   rows: _selectedPlayerGames!.map((game) {
                                     return DataRow(
@@ -298,19 +309,27 @@ class _AdminScreenState extends State<AdminScreen> {
                                         DataCell(
                                           Text(
                                             _formatDate(game['createdAt']),
-                                            style: const TextStyle(color: Colors.white),
+                                            style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
                                           ),
                                         ),
                                         DataCell(
-                                          Text(
-                                            game['name'] ?? '—',
-                                            style: const TextStyle(color: Colors.white),
+                                          Container(
+                                            constraints: const BoxConstraints(maxWidth: 200),
+                                            child: Text(
+                                              game['name'] ?? '—',
+                                              style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
                                         ),
                                         DataCell(
-                                          Text(
-                                            (game['players'] as List?)?.join(' vs ') ?? '',
-                                            style: const TextStyle(color: Colors.white),
+                                          Container(
+                                            constraints: const BoxConstraints(maxWidth: 150),
+                                            child: Text(
+                                              (game['players'] as List?)?.join(' vs ') ?? '',
+                                              style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
                                         ),
                                         DataCell(
