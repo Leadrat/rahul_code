@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'storage_service.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://5629d3d33922.ngrok-free.app/api';
+  static const String baseUrl = 'https://4a0a084745ee.ngrok-free.app/api';
   
   static Future<Map<String, String>> _getHeaders({bool includeAuth = true}) async {
     final headers = {'Content-Type': 'application/json'};

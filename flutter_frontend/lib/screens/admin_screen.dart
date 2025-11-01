@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import 'admin_game_replay_screen.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -20,6 +23,48 @@ class _AdminScreenState extends State<AdminScreen> {
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  void _openReplay(dynamic game) {
+    if (game is! Map<String, dynamic>) {
+      game = Map<String, dynamic>.from(game as Map);
+    }
+
+    final parsedMoves = _parseMoves(game['moves']);
+    final players = (game['players'] as List?)?.map((p) => p.toString()).toList() ?? [];
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AdminGameReplayScreen(
+          game: {
+            ...game,
+            'players': players,
+            'moves': parsedMoves,
+          },
+        ),
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _parseMoves(dynamic movesData) {
+    try {
+      if (movesData is String && movesData.isNotEmpty) {
+        final decoded = jsonDecode(movesData) as List<dynamic>;
+        return decoded
+            .map((move) => Map<String, dynamic>.from(move as Map))
+            .toList();
+      }
+
+      if (movesData is List) {
+        return movesData
+            .map((move) => Map<String, dynamic>.from(move as Map))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('AdminScreen: failed to parse moves - $e');
+    }
+
+    return [];
   }
 
   Future<void> _loadData() async {
@@ -342,9 +387,20 @@ class _AdminScreenState extends State<AdminScreen> {
                                           ),
                                         ),
                                         DataCell(
-                                          IconButton(
-                                            icon: const Icon(Icons.delete, color: Colors.red),
-                                            onPressed: () => _deleteGame(game['id']),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(Icons.play_arrow, color: Colors.blue),
+                                                tooltip: 'Replay game',
+                                                onPressed: () => _openReplay(game),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.delete, color: Colors.red),
+                                                tooltip: 'Delete game',
+                                                onPressed: () => _deleteGame(game['id']),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ],

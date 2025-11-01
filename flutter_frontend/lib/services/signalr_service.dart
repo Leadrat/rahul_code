@@ -3,7 +3,7 @@ import 'storage_service.dart';
 
 class SignalRService {
   static HubConnection? _connection;
-  static final String hubUrl = 'https://5629d3d33922.ngrok-free.app/gameHub';
+  static final String hubUrl = 'https://4a0a084745ee.ngrok-free.app/gameHub';
   
   static Future<HubConnection?> connect({
     Function(dynamic)? onInviteReceived,
