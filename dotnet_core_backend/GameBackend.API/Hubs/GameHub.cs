@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using GameBackend.Domain.Interfaces;
 using System.Collections.Concurrent;
+using System.Text.Json;
 
 namespace GameBackend.API.Hubs;
 
@@ -10,10 +11,12 @@ public class GameHub : Hub
 {
     private static readonly ConcurrentDictionary<string, string> UserConnections = new();
     private readonly IUserRepository _userRepository;
+    private readonly IGameRepository _gameRepository;
 
-    public GameHub(IUserRepository userRepository)
+    public GameHub(IUserRepository userRepository, IGameRepository gameRepository)
     {
         _userRepository = userRepository;
+        _gameRepository = gameRepository;
     }
 
     public override async Task OnConnectedAsync()
@@ -92,7 +95,67 @@ public class GameHub : Hub
 
     public async Task SendMove(string gameId, object moveData)
     {
-        await Clients.All.SendAsync("move:applied", new { gameId, move = moveData });
+        Console.WriteLine($"🎮 [SendMove] Received move for game {gameId}");
+        Console.WriteLine($"🎮 [SendMove] Move data: {JsonSerializer.Serialize(moveData)}");
+        
+        try
+        {
+            // Parse gameId
+            if (!int.TryParse(gameId, out var gameIdInt))
+            {
+                Console.WriteLine($"❌ [SendMove] Invalid game ID: {gameId}");
+                return;
+            }
+            
+            // Get the game from database
+            var game = await _gameRepository.GetByIdAsync(gameIdInt);
+            if (game == null)
+            {
+                Console.WriteLine($"❌ [SendMove] Game {gameId} not found in database");
+                return;
+            }
+            
+            Console.WriteLine($"📂 [SendMove] Game found. Current moves: {game.Moves ?? "null"}");
+            
+            // Parse existing moves
+            List<object> movesList;
+            if (string.IsNullOrEmpty(game.Moves))
+            {
+                movesList = new List<object>();
+                Console.WriteLine($"📝 [SendMove] No existing moves, creating new list");
+            }
+            else
+            {
+                try
+                {
+                    movesList = JsonSerializer.Deserialize<List<object>>(game.Moves) ?? new List<object>();
+                    Console.WriteLine($"📝 [SendMove] Loaded {movesList.Count} existing moves");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"⚠️ [SendMove] Error parsing existing moves: {ex.Message}");
+                    movesList = new List<object>();
+                }
+            }
+            
+            // Add new move
+            movesList.Add(moveData);
+            Console.WriteLine($"➕ [SendMove] Added new move. Total moves: {movesList.Count}");
+            
+            // Save updated moves back to database
+            game.Moves = JsonSerializer.Serialize(movesList);
+            await _gameRepository.UpdateAsync(game);
+            Console.WriteLine($"💾 [SendMove] Moves saved to database for game {gameId}");
+            
+            // Broadcast to all clients
+            await Clients.All.SendAsync("move:applied", new { gameId = gameIdInt, move = moveData });
+            Console.WriteLine($"✅ [SendMove] Move broadcast to all clients");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ [SendMove] Error processing move: {ex.Message}");
+            Console.WriteLine($"❌ [SendMove] Stack trace: {ex.StackTrace}");
+        }
     }
 
     public async Task JoinGame(string gameId, object joinData)
