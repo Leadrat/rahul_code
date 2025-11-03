@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Users, Building2, Briefcase, MessageSquare, Menu, X } from 'lucide-react';
+import { Home, Users, Building2, Briefcase, MessageSquare, Menu, X, Brain } from 'lucide-react';
 import './Layout.css';
 
 const Layout = ({ children }) => {
@@ -12,6 +12,7 @@ const Layout = ({ children }) => {
     { path: '/demographics', icon: Users, label: 'Demographics' },
     { path: '/housing', icon: Building2, label: 'Housing' },
     { path: '/workforce', icon: Briefcase, label: 'Workforce' },
+    { path: '/ml-insights', icon: Brain, label: 'ML Insights' },
     { path: '/qa', icon: MessageSquare, label: 'Ask Questions' },
   ];
 

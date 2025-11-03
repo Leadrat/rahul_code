@@ -25,6 +25,7 @@ from datetime import datetime
 # Add parent directory to path to import data_analysis module
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.data_analysis import load_datasets, compute_district_metrics
+from src.ml_models import MLModelManager, train_all_models
 
 app = Flask(__name__)
 CORS(app)
@@ -32,15 +33,22 @@ CORS(app)
 # Global data storage
 data_bundle = None
 district_metrics = None
+ml_manager = None
+ml_results = None
 
 def initialize_data():
     """Load datasets on startup."""
-    global data_bundle, district_metrics
+    global data_bundle, district_metrics, ml_manager, ml_results
     try:
         data_dir = Path(__file__).parent.parent
         data_bundle = load_datasets(data_dir)
         district_metrics = compute_district_metrics(data_bundle.district)
         print("✓ Data loaded successfully")
+        
+        # Train ML models
+        print("⏳ Training ML models...")
+        ml_results, ml_manager = train_all_models(district_metrics)
+        print("✓ ML models trained successfully")
     except Exception as e:
         print(f"✗ Error loading data: {e}")
         raise
@@ -390,6 +398,194 @@ def get_state_details(state_name):
         }
         
         return jsonify(details)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== ML ENDPOINTS ====================
+
+@app.route('/api/ml/overview', methods=['GET'])
+def get_ml_overview():
+    """Get overview of all ML models and their performance."""
+    try:
+        if ml_results is None:
+            return jsonify({'error': 'ML models not trained yet'}), 503
+        
+        overview = {
+            'models_trained': len(ml_results),
+            'models': {
+                'literacy_prediction': {
+                    'name': ml_results['literacy_prediction']['model_name'],
+                    'type': 'Regression',
+                    'r2_score': ml_results['literacy_prediction']['r2_score'],
+                    'rmse': ml_results['literacy_prediction']['rmse']
+                },
+                'internet_prediction': {
+                    'name': ml_results['internet_prediction']['model_name'],
+                    'type': 'Regression',
+                    'r2_score': ml_results['internet_prediction']['r2_score'],
+                    'rmse': ml_results['internet_prediction']['rmse']
+                },
+                'sanitation_classification': {
+                    'name': ml_results['sanitation_classification']['model_name'],
+                    'type': 'Classification',
+                    'accuracy': ml_results['sanitation_classification']['accuracy']
+                },
+                'district_clustering': {
+                    'name': ml_results['district_clustering']['model_name'],
+                    'type': 'Clustering',
+                    'n_clusters': ml_results['district_clustering']['n_clusters'],
+                    'silhouette_score': ml_results['district_clustering']['silhouette_score']
+                },
+                'anomaly_detection': {
+                    'name': ml_results['anomaly_detection']['model_name'],
+                    'type': 'Anomaly Detection',
+                    'anomalies_detected': ml_results['anomaly_detection']['anomalies_detected'],
+                    'anomaly_percentage': ml_results['anomaly_detection']['anomaly_percentage']
+                }
+            }
+        }
+        
+        return jsonify(overview)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml/literacy-prediction', methods=['GET'])
+def get_literacy_prediction_details():
+    """Get detailed results of literacy prediction model."""
+    try:
+        if ml_results is None:
+            return jsonify({'error': 'ML models not trained yet'}), 503
+        
+        return jsonify(ml_results['literacy_prediction'])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml/internet-prediction', methods=['GET'])
+def get_internet_prediction_details():
+    """Get detailed results of internet penetration prediction model."""
+    try:
+        if ml_results is None:
+            return jsonify({'error': 'ML models not trained yet'}), 503
+        
+        return jsonify(ml_results['internet_prediction'])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml/sanitation-classification', methods=['GET'])
+def get_sanitation_classification_details():
+    """Get detailed results of sanitation risk classification model."""
+    try:
+        if ml_results is None:
+            return jsonify({'error': 'ML models not trained yet'}), 503
+        
+        return jsonify(ml_results['sanitation_classification'])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml/clustering', methods=['GET'])
+def get_clustering_details():
+    """Get detailed results of district clustering."""
+    try:
+        if ml_results is None:
+            return jsonify({'error': 'ML models not trained yet'}), 503
+        
+        return jsonify(ml_results['district_clustering'])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml/anomalies', methods=['GET'])
+def get_anomalies():
+    """Get list of detected anomalous districts."""
+    try:
+        if ml_results is None:
+            return jsonify({'error': 'ML models not trained yet'}), 503
+        
+        return jsonify(ml_results['anomaly_detection'])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml/pca', methods=['GET'])
+def get_pca_analysis():
+    """Get PCA analysis results for visualization."""
+    try:
+        if ml_results is None:
+            return jsonify({'error': 'ML models not trained yet'}), 503
+        
+        return jsonify(ml_results['pca_analysis'])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml/recommendations/<district_name>', methods=['GET'])
+def get_district_recommendations(district_name):
+    """Get policy recommendations for a specific district."""
+    try:
+        if ml_manager is None:
+            return jsonify({'error': 'ML models not trained yet'}), 503
+        
+        recommendations = ml_manager.generate_policy_recommendations(district_metrics, district_name)
+        return jsonify(recommendations)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml/predict-literacy', methods=['POST'])
+def predict_literacy():
+    """Predict literacy rate for given features."""
+    try:
+        if ml_manager is None:
+            return jsonify({'error': 'ML models not trained yet'}), 503
+        
+        data = request.get_json()
+        features = data.get('features', {})
+        
+        prediction = ml_manager.predict_literacy(features)
+        
+        return jsonify({
+            'predicted_literacy_rate': prediction,
+            'features_used': features
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml/top-recommendations', methods=['GET'])
+def get_top_recommendations():
+    """Get top districts needing interventions based on priority scores."""
+    try:
+        if ml_manager is None:
+            return jsonify({'error': 'ML models not trained yet'}), 503
+        
+        # Get recommendations for all districts
+        all_recommendations = []
+        for district_name in district_metrics['District name'].unique()[:50]:  # Limit to 50 for performance
+            rec = ml_manager.generate_policy_recommendations(district_metrics, district_name)
+            if 'error' not in rec:
+                all_recommendations.append(rec)
+        
+        # Sort by priority score
+        all_recommendations.sort(key=lambda x: x['priority_score'], reverse=True)
+        
+        return jsonify({
+            'top_priority_districts': all_recommendations[:20],
+            'total_analyzed': len(all_recommendations)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml/cluster-comparison', methods=['GET'])
+def get_cluster_comparison():
+    """Get comparison of different clusters."""
+    try:
+        if ml_results is None:
+            return jsonify({'error': 'ML models not trained yet'}), 503
+        
+        cluster_data = ml_results['district_clustering']['cluster_profiles']
+        
+        # Prepare data for comparison charts
+        comparison = {
+            'clusters': cluster_data,
+            'metrics': ['avg_literacy', 'avg_urbanisation', 'avg_internet', 'avg_sanitation_gap']
+        }
+        
+        return jsonify(comparison)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

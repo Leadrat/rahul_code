@@ -7,3 +7,4 @@ flask-cors
 spacy
 scikit-learn
 plotly
+joblib

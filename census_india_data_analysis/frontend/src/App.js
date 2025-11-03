@@ -6,6 +6,7 @@ import Demographics from './pages/Demographics';
 import Housing from './pages/Housing';
 import Workforce from './pages/Workforce';
 import QAInterface from './pages/QAInterface';
+import MLInsights from './pages/MLInsights';
 import './App.css';
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
           <Route path="/housing" element={<Housing />} />
           <Route path="/workforce" element={<Workforce />} />
           <Route path="/qa" element={<QAInterface />} />
+          <Route path="/ml-insights" element={<MLInsights />} />
         </Routes>
       </Layout>
     </Router>
