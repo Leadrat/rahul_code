@@ -7,6 +7,7 @@ import Housing from './pages/Housing';
 import Workforce from './pages/Workforce';
 import QAInterface from './pages/QAInterface';
 import MLInsights from './pages/MLInsights';
+import Chatbot from './components/Chatbot';
 import './App.css';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="/workforce" element={<Workforce />} />
           <Route path="/qa" element={<QAInterface />} />
           <Route path="/ml-insights" element={<MLInsights />} />
+          <Route path="/chatbot" element={<Chatbot />} />
         </Routes>
       </Layout>
     </Router>

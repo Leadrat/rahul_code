@@ -26,19 +26,25 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.data_analysis import load_datasets, compute_district_metrics
 from src.ml_models import MLModelManager, train_all_models
+from backend.gemini_chatbot import GeminiChatbot
 
 app = Flask(__name__)
 CORS(app)
+
+# Configuration
+GEMINI_API_KEY = "AIzaSyDYGB9M-YnHaSYbLH-E_2FKViIx2rNmelc"
+NEON_DB_URL = "postgresql://neondb_owner:npg_QaDL2XEYuId8@ep-jolly-sound-a42vi9ji-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require"
 
 # Global data storage
 data_bundle = None
 district_metrics = None
 ml_manager = None
 ml_results = None
+gemini_chatbot = None
 
 def initialize_data():
     """Load datasets on startup."""
-    global data_bundle, district_metrics, ml_manager, ml_results
+    global data_bundle, district_metrics, ml_manager, ml_results, gemini_chatbot
     try:
         data_dir = Path(__file__).parent.parent
         data_bundle = load_datasets(data_dir)
@@ -49,6 +55,11 @@ def initialize_data():
         print("⏳ Training ML models...")
         ml_results, ml_manager = train_all_models(district_metrics)
         print("✓ ML models trained successfully")
+        
+        # Initialize Gemini Chatbot
+        print("⏳ Initializing Gemini Chatbot...")
+        gemini_chatbot = GeminiChatbot(GEMINI_API_KEY, NEON_DB_URL, data_bundle)
+        print("✓ Gemini Chatbot initialized successfully")
     except Exception as e:
         print(f"✗ Error loading data: {e}")
         raise
@@ -586,6 +597,95 @@ def get_cluster_comparison():
         }
         
         return jsonify(comparison)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== GEMINI CHATBOT ENDPOINTS ====================
+
+@app.route('/api/chatbot/session', methods=['POST'])
+def create_chat_session():
+    """Create a new chat session."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        session_id = gemini_chatbot.create_session()
+        return jsonify({
+            'success': True,
+            'session_id': session_id
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/chat', methods=['POST'])
+def chat_with_bot():
+    """Send a message to the chatbot."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        data = request.get_json()
+        session_id = data.get('session_id')
+        user_prompt = data.get('message', '').strip()
+        
+        if not session_id:
+            return jsonify({'error': 'session_id is required'}), 400
+        
+        if not user_prompt:
+            return jsonify({'error': 'message is required'}), 400
+        
+        result = gemini_chatbot.chat(session_id, user_prompt)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/history/<session_id>', methods=['GET'])
+def get_chat_history(session_id):
+    """Get conversation history for a session."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        history = gemini_chatbot.get_conversation_history(session_id)
+        return jsonify({
+            'success': True,
+            'history': history,
+            'session_id': session_id
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/summary/<session_id>', methods=['POST'])
+def generate_summary(session_id):
+    """Generate a summary of the conversation."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        result = gemini_chatbot.generate_conversation_summary(session_id)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/summary/<session_id>', methods=['GET'])
+def get_summary(session_id):
+    """Get the most recent summary for a session."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        summary = gemini_chatbot.get_session_summary(session_id)
+        if summary:
+            return jsonify({
+                'success': True,
+                'summary': summary,
+                'session_id': session_id
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'No summary found for this session'
+            }), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
