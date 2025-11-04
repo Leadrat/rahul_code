@@ -18,15 +18,41 @@ const Chatbot = () => {
   const [loadingStates, setLoadingStates] = useState({
     sessions: false,
     history: false,
-    deletion: false
+    deletion: false,
+    initializing: true
   });
   const messagesEndRef = useRef(null);
 
   // Initialize chat session on component mount
   useEffect(() => {
-    initializeSession();
-    loadSessions();
-  }, []);
+    const initialize = async () => {
+      setLoadingStates(prev => ({ ...prev, initializing: true }));
+      try {
+        // First load all sessions
+        await loadSessions();
+        
+        // Then try to load the most recent session
+        const sessionsResponse = await axios.get(`${API_BASE_URL}/chatbot/sessions`);
+        if (sessionsResponse.data.success && sessionsResponse.data.sessions.length > 0) {
+          // Load the most recent session (first in the list since they're ordered by last_activity DESC)
+          const mostRecentSession = sessionsResponse.data.sessions[0];
+          await loadSession(mostRecentSession.session_id);
+        } else {
+          // No previous sessions, create a new one
+          await createNewSession();
+        }
+      } catch (error) {
+        console.error('Error initializing app:', error);
+        // Fallback: create a new session
+        await createNewSession();
+      } finally {
+        setLoadingStates(prev => ({ ...prev, initializing: false }));
+      }
+    };
+    
+    initialize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array is intentional - we only want this to run once on mount
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -37,30 +63,9 @@ const Chatbot = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const initializeSession = async () => {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/chatbot/session`);
-      if (response.data.success) {
-        setSessionId(response.data.session_id);
-        setMessages([
-          {
-            type: 'bot',
-            content: 'Hello! I\'m your Census 2011 India data assistant powered by Gemini AI. I can help you explore demographic data, housing statistics, literacy rates, and much more. What would you like to know?',
-            timestamp: new Date()
-          }
-        ]);
-      }
-    } catch (error) {
-      console.error('Error initializing session:', error);
-      setMessages([
-        {
-          type: 'error',
-          content: 'Failed to initialize chat session. Please refresh the page.',
-          timestamp: new Date()
-        }
-      ]);
-    }
-  };
+
+
+
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -224,7 +229,7 @@ const Chatbot = () => {
       
       // Load conversation history
       const historyResponse = await axios.get(`${API_BASE_URL}/chatbot/history/${selectedSessionId}`);
-      if (historyResponse.data.success) {
+      if (historyResponse.data.success && historyResponse.data.history.length > 0) {
         const history = historyResponse.data.history.map(item => [
           {
             type: 'user',
@@ -239,6 +244,15 @@ const Chatbot = () => {
         ]).flat();
         
         setMessages(history);
+      } else {
+        // No conversation history, show welcome message
+        setMessages([
+          {
+            type: 'bot',
+            content: 'Hello! I\'m your Census 2011 India data assistant powered by Gemini AI. I can help you explore demographic data, housing statistics, literacy rates, and much more. What would you like to know?',
+            timestamp: new Date()
+          }
+        ]);
       }
       
       // Try to load existing summary
@@ -308,6 +322,24 @@ const Chatbot = () => {
     });
   };
 
+  // Show loading screen while initializing
+  if (loadingStates.initializing) {
+    return (
+      <div className="chatbot-container">
+        <div className="chatbot-loading">
+          <div className="loading-content">
+            <Bot size={48} className="loading-icon" />
+            <h2>Loading Census AI Assistant...</h2>
+            <div className="loading-spinner">
+              <Loader className="spinning" size={32} />
+            </div>
+            <p>Preparing your previous session...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="chatbot-container">
       <div className="chatbot-header">
@@ -335,7 +367,8 @@ const Chatbot = () => {
           <button 
             className="action-button"
             onClick={createNewSession}
-            title="Start new session"
+            title={messages.length <= 1 ? "Session is already empty" : "Start new session"}
+            disabled={messages.length <= 1}
           >
             <Plus size={20} />
             New

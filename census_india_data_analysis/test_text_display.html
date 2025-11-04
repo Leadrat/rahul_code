@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Display Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Apply the same CSS as the chatbot */
+        .chatbot-container {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            writing-mode: horizontal-tb !important;
+            text-orientation: mixed !important;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .chatbot-container * {
+            writing-mode: horizontal-tb !important;
+            text-orientation: mixed !important;
+            direction: ltr !important;
+        }
+        
+        .message {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        
+        .message-icon {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .message-content {
+            flex: 1;
+            max-width: 70%;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            writing-mode: horizontal-tb !important;
+            text-orientation: mixed !important;
+        }
+        
+        .message-text {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            min-width: 0;
+            flex: 1;
+            font-family: inherit;
+            letter-spacing: normal;
+            writing-mode: horizontal-tb !important;
+            text-orientation: mixed !important;
+            direction: ltr !important;
+            unicode-bidi: normal !important;
+            display: block !important;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Text Display Fix Test</h1>
+        <p>This page tests if the text display issue is resolved.</p>
+        
+        <div class="test-section">
+            <h3>Test 1: Short Text</h3>
+            <div class="chatbot-container">
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">hi</div>
+                    </div>
+                </div>
+                <div class="message">
+                    <div class="message-icon">🤖</div>
+                    <div class="message-content">
+                        <div class="message-text">Hello</div>
+                    </div>
+                </div>
+            </div>
+            <div class="result success">
+                ✅ Expected: "hi" and "Hello" should display horizontally on single lines
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Test 2: Various Text Lengths</h3>
+            <div class="chatbot-container">
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">a</div>
+                    </div>
+                </div>
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">ok</div>
+                    </div>
+                </div>
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">test</div>
+                    </div>
+                </div>
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">This is a longer message</div>
+                    </div>
+                </div>
+            </div>
+            <div class="result success">
+                ✅ Expected: All text should display horizontally, not character-by-character vertically
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Test 3: Special Characters</h3>
+            <div class="chatbot-container">
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">123</div>
+                    </div>
+                </div>
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">@#$</div>
+                    </div>
+                </div>
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">हैलो</div>
+                    </div>
+                </div>
+            </div>
+            <div class="result success">
+                ✅ Expected: Numbers, symbols, and Unicode characters should display horizontally
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Verification Checklist</h3>
+            <ul>
+                <li>✅ Text "hi" displays as "hi" (not "h" on one line, "i" on another)</li>
+                <li>✅ All messages display horizontally</li>
+                <li>✅ No character-by-character vertical splitting</li>
+                <li>✅ Text wraps properly for long messages</li>
+                <li>✅ Special characters display correctly</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        // Test if text is displaying correctly
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageTexts = document.querySelectorAll('.message-text');
+            let allCorrect = true;
+            
+            messageTexts.forEach(function(element) {
+                const rect = element.getBoundingClientRect();
+                const text = element.textContent;
+                
+                // Check if text is very tall relative to its width (indicating vertical display)
+                if (text.length <= 10 && rect.height > rect.width && rect.height > 50) {
+                    allCorrect = false;
+                    element.style.border = '2px solid red';
+                    element.title = 'ERROR: Text may be displaying vertically';
+                }
+            });
+            
+            if (allCorrect) {
+                console.log('✅ All text displays correctly');
+            } else {
+                console.log('❌ Some text may be displaying vertically');
+            }
+        });
+    </script>
+</body>
+</html>
