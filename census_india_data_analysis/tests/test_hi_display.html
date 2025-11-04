@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test "hi" Display</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Exact CSS from chatbot */
+        .chatbot-container {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            writing-mode: horizontal-tb !important;
+            text-orientation: mixed !important;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .chatbot-container * {
+            writing-mode: horizontal-tb !important;
+            text-orientation: mixed !important;
+            direction: ltr !important;
+            word-break: normal !important;
+            overflow-wrap: normal !important;
+        }
+        
+        .message {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        
+        .message-icon {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-size: 18px;
+        }
+        
+        .message-content {
+            flex: 1;
+            max-width: 70%;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            writing-mode: horizontal-tb !important;
+            text-orientation: mixed !important;
+        }
+        
+        .message-text {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: normal !important;
+            overflow-wrap: normal !important;
+            word-break: normal !important;
+            min-width: 0;
+            flex: 1;
+            font-family: inherit;
+            letter-spacing: normal;
+            writing-mode: horizontal-tb !important;
+            text-orientation: mixed !important;
+            direction: ltr !important;
+            unicode-bidi: normal !important;
+            display: block !important;
+            text-align: left !important;
+            vertical-align: baseline !important;
+            border: 1px solid #e5e7eb;
+        }
+        
+        /* Force horizontal text display for all text content */
+        .message-text,
+        .message-text *,
+        .thinking-text,
+        .chatbot-input {
+            writing-mode: horizontal-tb !important;
+            text-orientation: mixed !important;
+            direction: ltr !important;
+            word-break: normal !important;
+            overflow-wrap: normal !important;
+            white-space: pre-wrap !important;
+            display: inline !important;
+        }
+
+        .message-text {
+            display: block !important;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .highlight {
+            background: #fef3c7;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Test "hi" Display Issue</h1>
+        <p>This page specifically tests if "hi" displays correctly (horizontally, not vertically).</p>
+        
+        <div class="test-section">
+            <h3>Critical Test: "hi" Display</h3>
+            <p>The word <span class="highlight">"hi"</span> should appear as a single horizontal word, not as <span class="highlight">"h"</span> on one line and <span class="highlight">"i"</span> on another.</p>
+            
+            <div class="chatbot-container">
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">hi</div>
+                    </div>
+                </div>
+                
+                <div class="message">
+                    <div class="message-icon">🤖</div>
+                    <div class="message-content">
+                        <div class="message-text">Hello! How can I help you?</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="result success">
+                ✅ <strong>Expected:</strong> "hi" should display as one word horizontally<br>
+                ❌ <strong>Problem:</strong> If "hi" shows as "h" + "i" on separate lines
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Additional Short Text Tests</h3>
+            <div class="chatbot-container">
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">a</div>
+                    </div>
+                </div>
+                
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">ok</div>
+                    </div>
+                </div>
+                
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">yes</div>
+                    </div>
+                </div>
+                
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">no</div>
+                    </div>
+                </div>
+                
+                <div class="message">
+                    <div class="message-icon">👤</div>
+                    <div class="message-content">
+                        <div class="message-text">test</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Verification Steps</h3>
+            <ol>
+                <li>Look at the "hi" message above</li>
+                <li>Verify it appears as one horizontal word</li>
+                <li>Check that all other short words display horizontally</li>
+                <li>If any text appears character-by-character vertically, the CSS needs more fixes</li>
+            </ol>
+            
+            <div class="result" id="testResult">
+                <strong>Visual Check:</strong> Inspect the messages above to confirm horizontal text display.
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>CSS Rules Applied</h3>
+            <ul>
+                <li><code>writing-mode: horizontal-tb !important</code></li>
+                <li><code>text-orientation: mixed !important</code></li>
+                <li><code>direction: ltr !important</code></li>
+                <li><code>word-break: normal !important</code></li>
+                <li><code>overflow-wrap: normal !important</code></li>
+                <li><code>white-space: pre-wrap !important</code></li>
+                <li><code>display: block !important</code> (for message-text)</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-check for vertical text display
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageTexts = document.querySelectorAll('.message-text');
+            let hasVerticalText = false;
+            
+            messageTexts.forEach(function(element) {
+                const text = element.textContent.trim();
+                const rect = element.getBoundingClientRect();
+                
+                // For very short text like "hi", check if height is disproportionately large
+                if (text.length <= 3 && rect.height > 40) {
+                    hasVerticalText = true;
+                    element.style.border = '3px solid red';
+                    element.title = 'ERROR: Text appears to be displaying vertically';
+                }
+            });
+            
+            const resultDiv = document.getElementById('testResult');
+            if (hasVerticalText) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ <strong>ISSUE DETECTED:</strong> Some text may be displaying vertically (marked with red border)';
+            } else {
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = '✅ <strong>SUCCESS:</strong> All text appears to be displaying horizontally';
+            }
+        });
+    </script>
+</body>
+</html>

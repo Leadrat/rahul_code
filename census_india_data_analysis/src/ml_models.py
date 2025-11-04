@@ -43,16 +43,24 @@ class MLModelManager:
         return X_scaled, scaler
     
     def train_literacy_predictor(self, district_df: pd.DataFrame) -> Dict[str, Any]:
-        """Train model to predict literacy rates."""
+        """Train model to predict literacy rates with housing features."""
+        # Enhanced feature set including housing data
         feature_cols = [
             'Population', 'Urbanisation_Rate', 'Internet_Penetration',
             'Mobile_Phone_Access', 'Worker_Participation_Rate',
-            'Households_with_Television', 'Households_with_Computer'
+            'Households_with_Television', 'Households_with_Computer',
+            # Housing features (if available)
+            'Housing_Quality_Score', 'Modern_Construction_Score', 'Clean_Energy_Score',
+            'Digital_Assets_Score', 'Infrastructure_Score', 'MSL_Electricty',
+            'Cooking_LPG_PNG', 'assets_Tel', 'assets_CL_WI'
         ]
         
+        # Use only available features
+        available_features = [col for col in feature_cols if col in district_df.columns]
+        
         # Prepare data
-        df_clean = district_df.dropna(subset=['Literacy_Rate'] + feature_cols)
-        X, scaler = self.prepare_features(df_clean, feature_cols)
+        df_clean = district_df.dropna(subset=['Literacy_Rate'] + available_features)
+        X, scaler = self.prepare_features(df_clean, available_features)
         y = df_clean['Literacy_Rate'].values
         
         # Train-test split
@@ -70,30 +78,39 @@ class MLModelManager:
         # Store model
         self.models['literacy_predictor'] = model
         self.scalers['literacy_predictor'] = scaler
-        self.feature_names['literacy_predictor'] = feature_cols
+        self.feature_names['literacy_predictor'] = available_features
         
         # Feature importance
-        feature_importance = dict(zip(feature_cols, model.feature_importances_))
+        feature_importance = dict(zip(available_features, model.feature_importances_))
         
         return {
-            'model_name': 'Literacy Rate Predictor',
+            'model_name': 'Enhanced Literacy Rate Predictor',
             'mse': float(mse),
             'r2_score': float(r2),
             'rmse': float(np.sqrt(mse)),
             'feature_importance': feature_importance,
-            'test_samples': len(y_test)
+            'test_samples': len(y_test),
+            'features_used': available_features,
+            'housing_features_included': len([f for f in available_features if f in ['Housing_Quality_Score', 'Modern_Construction_Score', 'Clean_Energy_Score', 'Digital_Assets_Score', 'Infrastructure_Score']])
         }
     
     def train_internet_predictor(self, district_df: pd.DataFrame) -> Dict[str, Any]:
-        """Train model to predict internet penetration."""
+        """Train model to predict internet penetration with housing features."""
         feature_cols = [
             'Literacy_Rate', 'Urbanisation_Rate', 'Mobile_Phone_Access',
             'Households_with_Television', 'Households_with_Computer',
-            'Worker_Participation_Rate', 'Population'
+            'Worker_Participation_Rate', 'Population',
+            # Housing features (if available)
+            'Digital_Assets_Score', 'Clean_Energy_Score', 'Infrastructure_Score',
+            'MSL_Electricty', 'assets_Tel', 'assets_CL_WI', 'assets_TM_MO',
+            'Modern_Construction_Score', 'Housing_Quality_Score'
         ]
         
-        df_clean = district_df.dropna(subset=['Internet_Penetration'] + feature_cols)
-        X, scaler = self.prepare_features(df_clean, feature_cols)
+        # Use only available features
+        available_features = [col for col in feature_cols if col in district_df.columns]
+        
+        df_clean = district_df.dropna(subset=['Internet_Penetration'] + available_features)
+        X, scaler = self.prepare_features(df_clean, available_features)
         y = df_clean['Internet_Penetration'].values
         
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -107,28 +124,37 @@ class MLModelManager:
         
         self.models['internet_predictor'] = model
         self.scalers['internet_predictor'] = scaler
-        self.feature_names['internet_predictor'] = feature_cols
+        self.feature_names['internet_predictor'] = available_features
         
-        feature_importance = dict(zip(feature_cols, model.feature_importances_))
+        feature_importance = dict(zip(available_features, model.feature_importances_))
         
         return {
-            'model_name': 'Internet Penetration Predictor',
+            'model_name': 'Enhanced Internet Penetration Predictor',
             'mse': float(mse),
             'r2_score': float(r2),
             'rmse': float(np.sqrt(mse)),
             'feature_importance': feature_importance,
-            'test_samples': len(y_test)
+            'test_samples': len(y_test),
+            'features_used': available_features,
+            'housing_features_included': len([f for f in available_features if f in ['Digital_Assets_Score', 'Clean_Energy_Score', 'Infrastructure_Score', 'Housing_Quality_Score']])
         }
     
     def train_sanitation_classifier(self, district_df: pd.DataFrame) -> Dict[str, Any]:
-        """Train model to classify sanitation risk levels."""
+        """Train model to classify sanitation risk levels with housing features."""
         feature_cols = [
             'Literacy_Rate', 'Urbanisation_Rate', 'Population',
-            'Worker_Participation_Rate', 'Internet_Penetration'
+            'Worker_Participation_Rate', 'Internet_Penetration',
+            # Housing features (if available)
+            'Infrastructure_Score', 'Housing_Quality_Score', 'Clean_Energy_Score',
+            'Latrine_premise', 'Households_Bathroom', 'Within_premises',
+            'Modern_Construction_Score', 'MSL_Electricty'
         ]
         
+        # Use only available features
+        available_features = [col for col in feature_cols if col in district_df.columns]
+        
         # Create risk categories based on sanitation gap
-        df_clean = district_df.dropna(subset=['Sanitation_Gap'] + feature_cols).copy()
+        df_clean = district_df.dropna(subset=['Sanitation_Gap'] + available_features).copy()
         
         # Define risk levels: Low (0-20%), Medium (20-50%), High (>50%)
         df_clean['Sanitation_Risk'] = pd.cut(
@@ -137,7 +163,7 @@ class MLModelManager:
             labels=['Low', 'Medium', 'High']
         )
         
-        X, scaler = self.prepare_features(df_clean, feature_cols)
+        X, scaler = self.prepare_features(df_clean, available_features)
         y = df_clean['Sanitation_Risk'].values
         
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -150,20 +176,22 @@ class MLModelManager:
         
         self.models['sanitation_classifier'] = model
         self.scalers['sanitation_classifier'] = scaler
-        self.feature_names['sanitation_classifier'] = feature_cols
+        self.feature_names['sanitation_classifier'] = available_features
         
-        feature_importance = dict(zip(feature_cols, model.feature_importances_))
+        feature_importance = dict(zip(available_features, model.feature_importances_))
         
         # Get class distribution
         unique, counts = np.unique(y_test, return_counts=True)
         class_distribution = dict(zip(unique, counts.tolist()))
         
         return {
-            'model_name': 'Sanitation Risk Classifier',
+            'model_name': 'Enhanced Sanitation Risk Classifier',
             'accuracy': float(accuracy),
             'feature_importance': feature_importance,
             'test_samples': len(y_test),
-            'class_distribution': class_distribution
+            'class_distribution': class_distribution,
+            'features_used': available_features,
+            'housing_features_included': len([f for f in available_features if f in ['Infrastructure_Score', 'Housing_Quality_Score', 'Latrine_premise', 'Households_Bathroom']])
         }
     
     def perform_district_clustering(self, district_df: pd.DataFrame, n_clusters: int = 5) -> Dict[str, Any]:
@@ -421,6 +449,221 @@ class MLModelManager:
             scaler_path = output_dir / f"{scaler_name}_scaler.joblib"
             joblib.dump(scaler, scaler_path)
     
+    def train_housing_quality_predictor(self, integrated_df: pd.DataFrame) -> Dict[str, Any]:
+        """Train model to predict housing quality score."""
+        feature_cols = [
+            'Literacy_Rate', 'Urbanisation_Rate', 'Worker_Participation_Rate',
+            'Modern_Construction_Score', 'Clean_Energy_Score', 'Infrastructure_Score',
+            'MSL_Electricty', 'Cooking_LPG_PNG', 'Material_Roof_Concrete'
+        ]
+        
+        # Check if housing features are available
+        available_features = [col for col in feature_cols if col in integrated_df.columns]
+        if len(available_features) < 5:
+            return {'error': 'Insufficient housing features for training'}
+        
+        df_clean = integrated_df.dropna(subset=['Housing_Quality_Score'] + available_features)
+        X, scaler = self.prepare_features(df_clean, available_features)
+        y = df_clean['Housing_Quality_Score'].values
+        
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        model = RandomForestRegressor(n_estimators=100, random_state=42, max_depth=10)
+        model.fit(X_train, y_train)
+        
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+        
+        self.models['housing_quality_predictor'] = model
+        self.scalers['housing_quality_predictor'] = scaler
+        self.feature_names['housing_quality_predictor'] = available_features
+        
+        feature_importance = dict(zip(available_features, model.feature_importances_))
+        
+        return {
+            'model_name': 'Housing Quality Predictor',
+            'mse': float(mse),
+            'r2_score': float(r2),
+            'rmse': float(np.sqrt(mse)),
+            'feature_importance': feature_importance,
+            'test_samples': len(y_test),
+            'features_used': available_features
+        }
+    
+    def train_asset_ownership_classifier(self, integrated_df: pd.DataFrame) -> Dict[str, Any]:
+        """Train model to classify asset ownership levels."""
+        feature_cols = [
+            'Literacy_Rate', 'Urbanisation_Rate', 'Housing_Quality_Score',
+            'Clean_Energy_Score', 'MSL_Electricty', 'Cooking_LPG_PNG'
+        ]
+        
+        available_features = [col for col in feature_cols if col in integrated_df.columns]
+        if len(available_features) < 4:
+            return {'error': 'Insufficient features for asset ownership classification'}
+        
+        df_clean = integrated_df.dropna(subset=['Digital_Assets_Score'] + available_features).copy()
+        
+        # Create asset ownership categories
+        df_clean['Asset_Category'] = pd.cut(
+            df_clean['Digital_Assets_Score'],
+            bins=[0, 20, 50, 100],
+            labels=['Low', 'Medium', 'High']
+        )
+        
+        X, scaler = self.prepare_features(df_clean, available_features)
+        y = df_clean['Asset_Category'].values
+        
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        model = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=10)
+        model.fit(X_train, y_train)
+        
+        y_pred = model.predict(X_test)
+        accuracy = (y_pred == y_test).mean()
+        
+        self.models['asset_ownership_classifier'] = model
+        self.scalers['asset_ownership_classifier'] = scaler
+        self.feature_names['asset_ownership_classifier'] = available_features
+        
+        feature_importance = dict(zip(available_features, model.feature_importances_))
+        
+        unique, counts = np.unique(y_test, return_counts=True)
+        class_distribution = dict(zip(unique, counts.tolist()))
+        
+        return {
+            'model_name': 'Asset Ownership Classifier',
+            'accuracy': float(accuracy),
+            'feature_importance': feature_importance,
+            'test_samples': len(y_test),
+            'class_distribution': class_distribution,
+            'features_used': available_features
+        }
+    
+    def perform_housing_clustering(self, integrated_df: pd.DataFrame, n_clusters: int = 4) -> Dict[str, Any]:
+        """Cluster districts based on housing characteristics."""
+        feature_cols = [
+            'Housing_Quality_Score', 'Modern_Construction_Score', 'Clean_Energy_Score',
+            'Digital_Assets_Score', 'Infrastructure_Score', 'Permanents',
+            'MSL_Electricty', 'Cooking_LPG_PNG'
+        ]
+        
+        available_features = [col for col in feature_cols if col in integrated_df.columns]
+        if len(available_features) < 4:
+            return {'error': 'Insufficient housing features for clustering'}
+        
+        df_clean = integrated_df.dropna(subset=available_features).copy()
+        X, scaler = self.prepare_features(df_clean, available_features)
+        
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        clusters = kmeans.fit_predict(X)
+        
+        silhouette = silhouette_score(X, clusters)
+        
+        df_clean['Housing_Cluster'] = clusters
+        self.models['housing_clustering'] = kmeans
+        self.scalers['housing_clustering'] = scaler
+        self.feature_names['housing_clustering'] = available_features
+        
+        cluster_profiles = []
+        for i in range(n_clusters):
+            cluster_data = df_clean[df_clean['Housing_Cluster'] == i]
+            profile = {
+                'cluster_id': int(i),
+                'size': int(len(cluster_data)),
+                'avg_housing_quality': float(cluster_data['Housing_Quality_Score'].mean()) if 'Housing_Quality_Score' in cluster_data.columns else 0,
+                'avg_modern_construction': float(cluster_data['Modern_Construction_Score'].mean()) if 'Modern_Construction_Score' in cluster_data.columns else 0,
+                'avg_clean_energy': float(cluster_data['Clean_Energy_Score'].mean()) if 'Clean_Energy_Score' in cluster_data.columns else 0,
+                'avg_digital_assets': float(cluster_data['Digital_Assets_Score'].mean()) if 'Digital_Assets_Score' in cluster_data.columns else 0,
+                'districts': cluster_data['District name'].tolist()[:5] if 'District name' in cluster_data.columns else []
+            }
+            cluster_profiles.append(profile)
+        
+        return {
+            'model_name': 'Housing-based District Clustering',
+            'n_clusters': n_clusters,
+            'silhouette_score': float(silhouette),
+            'cluster_profiles': cluster_profiles,
+            'total_districts': len(df_clean),
+            'features_used': available_features
+        }
+    
+    def train_infrastructure_predictor(self, integrated_df: pd.DataFrame) -> Dict[str, Any]:
+        """Train model to predict infrastructure score."""
+        feature_cols = [
+            'Literacy_Rate', 'Urbanisation_Rate', 'Population',
+            'Housing_Quality_Score', 'Clean_Energy_Score', 'MSL_Electricty'
+        ]
+        
+        available_features = [col for col in feature_cols if col in integrated_df.columns]
+        if len(available_features) < 4:
+            return {'error': 'Insufficient features for infrastructure prediction'}
+        
+        df_clean = integrated_df.dropna(subset=['Infrastructure_Score'] + available_features)
+        X, scaler = self.prepare_features(df_clean, available_features)
+        y = df_clean['Infrastructure_Score'].values
+        
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        model = RandomForestRegressor(n_estimators=100, random_state=42, max_depth=10)
+        model.fit(X_train, y_train)
+        
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+        
+        self.models['infrastructure_predictor'] = model
+        self.scalers['infrastructure_predictor'] = scaler
+        self.feature_names['infrastructure_predictor'] = available_features
+        
+        feature_importance = dict(zip(available_features, model.feature_importances_))
+        
+        return {
+            'model_name': 'Infrastructure Score Predictor',
+            'mse': float(mse),
+            'r2_score': float(r2),
+            'rmse': float(np.sqrt(mse)),
+            'feature_importance': feature_importance,
+            'test_samples': len(y_test),
+            'features_used': available_features
+        }
+    
+    def predict_housing_quality(self, features: Dict[str, float]) -> float:
+        """Predict housing quality score for given features."""
+        if 'housing_quality_predictor' not in self.models:
+            raise ValueError("Housing quality predictor model not trained")
+        
+        feature_cols = self.feature_names['housing_quality_predictor']
+        X = np.array([[features[col] for col in feature_cols]])
+        X_scaled = self.scalers['housing_quality_predictor'].transform(X)
+        
+        prediction = self.models['housing_quality_predictor'].predict(X_scaled)
+        return float(prediction[0])
+    
+    def classify_asset_ownership(self, features: Dict[str, float]) -> str:
+        """Classify asset ownership level for given features."""
+        if 'asset_ownership_classifier' not in self.models:
+            raise ValueError("Asset ownership classifier model not trained")
+        
+        feature_cols = self.feature_names['asset_ownership_classifier']
+        X = np.array([[features[col] for col in feature_cols]])
+        X_scaled = self.scalers['asset_ownership_classifier'].transform(X)
+        
+        prediction = self.models['asset_ownership_classifier'].predict(X_scaled)
+        return str(prediction[0])
+    
+    def get_housing_cluster(self, features: Dict[str, float]) -> int:
+        """Get housing cluster assignment for given features."""
+        if 'housing_clustering' not in self.models:
+            raise ValueError("Housing clustering model not trained")
+        
+        feature_cols = self.feature_names['housing_clustering']
+        X = np.array([[features[col] for col in feature_cols]])
+        X_scaled = self.scalers['housing_clustering'].transform(X)
+        
+        cluster = self.models['housing_clustering'].predict(X_scaled)
+        return int(cluster[0])
+    
     def load_models(self, input_dir: Path):
         """Load trained models from disk."""
         for model_file in input_dir.glob("*.joblib"):
@@ -432,17 +675,143 @@ class MLModelManager:
                 self.scalers[scaler_name] = joblib.load(model_file)
 
 
-def train_all_models(district_df: pd.DataFrame) -> Dict[str, Any]:
-    """Train all ML models and return results."""
+def prepare_housing_features(housing_df: pd.DataFrame) -> pd.DataFrame:
+    """Prepare housing data features for ML integration."""
+    # Aggregate housing data by district for integration with district data
+    housing_features = housing_df.groupby(['State Name', 'District Name']).agg({
+        # Housing condition metrics
+        'Total Number of Good': 'mean',
+        'Total Number of Livable': 'mean', 
+        'Total Number of Dilapidated': 'mean',
+        
+        # Construction materials (quality indicators)
+        'Material_Roof_Concrete': 'mean',
+        'Material_Wall_Concrete': 'mean',
+        'Material_Floor_Cement': 'mean',
+        'Material_Floor_MF': 'mean',  # Mosaic/Floor tiles
+        
+        # Utilities and amenities
+        'MSL_Electricty': 'mean',
+        'Cooking_LPG_PNG': 'mean',
+        'Cooking_Electricity': 'mean',
+        'Cooking_FW': 'mean',  # Firewood (traditional fuel)
+        
+        # Water and sanitation
+        'Within_premises': 'mean',  # Water within premises
+        'Latrine_premise': 'mean',  # Latrine within premises
+        'Households_Bathroom': 'mean',
+        
+        # Assets
+        'assets_RT': 'mean',  # Radio/Transistor
+        'assets_Tel': 'mean',  # Television
+        'assets_CL_WI': 'mean',  # Computer with Internet
+        'assets_CLWI': 'mean',  # Computer without Internet
+        'assets_TM_MO': 'mean',  # Mobile phone
+        'assets_Bicycle': 'mean',
+        'assets_SMM': 'mean',  # Scooter/Motorcycle
+        'assets_CJV': 'mean',  # Car/Jeep/Van
+        
+        # Housing structure
+        'Permanents': 'mean',
+        'Semi_Permanent': 'mean',
+        'Total_Temporary': 'mean',
+        
+        # Household size distribution
+        'H_size_1': 'mean',
+        'H_size_2': 'mean',
+        'H_size_3': 'mean',
+        'H_size_4': 'mean',
+        'H_size_5': 'mean',
+        'H_size_6_8': 'mean',
+        'H_size_9': 'mean'
+    }).reset_index()
+    
+    # Calculate derived housing metrics
+    housing_features['Housing_Quality_Score'] = (
+        housing_features['Total Number of Good'] * 1.0 +
+        housing_features['Total Number of Livable'] * 0.6 +
+        housing_features['Total Number of Dilapidated'] * 0.2
+    )
+    
+    housing_features['Modern_Construction_Score'] = (
+        housing_features['Material_Roof_Concrete'] +
+        housing_features['Material_Wall_Concrete'] +
+        housing_features['Material_Floor_Cement'] +
+        housing_features['Material_Floor_MF']
+    ) / 4
+    
+    housing_features['Clean_Energy_Score'] = (
+        housing_features['Cooking_LPG_PNG'] +
+        housing_features['Cooking_Electricity'] +
+        housing_features['MSL_Electricty']
+    ) / 3
+    
+    housing_features['Digital_Assets_Score'] = (
+        housing_features['assets_CL_WI'] +
+        housing_features['assets_CLWI'] +
+        housing_features['assets_TM_MO'] +
+        housing_features['assets_Tel']
+    ) / 4
+    
+    housing_features['Infrastructure_Score'] = (
+        housing_features['Within_premises'] +
+        housing_features['Latrine_premise'] +
+        housing_features['Households_Bathroom']
+    ) / 3
+    
+    return housing_features
+
+def integrate_district_housing_data(district_df: pd.DataFrame, housing_df: pd.DataFrame) -> pd.DataFrame:
+    """Integrate district metrics with housing features."""
+    # Prepare housing features
+    housing_features = prepare_housing_features(housing_df)
+    
+    # Merge with district data
+    integrated_df = district_df.merge(
+        housing_features,
+        left_on=['State name', 'District name'],
+        right_on=['State Name', 'District Name'],
+        how='left'
+    )
+    
+    # Drop duplicate columns
+    integrated_df = integrated_df.drop(['State Name', 'District Name'], axis=1)
+    
+    # Fill missing values with median
+    numeric_cols = integrated_df.select_dtypes(include=[np.number]).columns
+    integrated_df[numeric_cols] = integrated_df[numeric_cols].fillna(integrated_df[numeric_cols].median())
+    
+    return integrated_df
+
+def train_all_models(district_df: pd.DataFrame, housing_df: pd.DataFrame = None) -> Dict[str, Any]:
+    """Train all ML models with integrated district and housing data."""
     ml_manager = MLModelManager()
     
+    # If housing data is provided, integrate it with district data
+    if housing_df is not None:
+        print("🏠 Integrating housing data with district metrics...")
+        integrated_df = integrate_district_housing_data(district_df, housing_df)
+        print(f"✅ Integrated dataset shape: {integrated_df.shape}")
+    else:
+        integrated_df = district_df
+        print("⚠️  Training models on district data only")
+    
     results = {
-        'literacy_prediction': ml_manager.train_literacy_predictor(district_df),
-        'internet_prediction': ml_manager.train_internet_predictor(district_df),
-        'sanitation_classification': ml_manager.train_sanitation_classifier(district_df),
-        'district_clustering': ml_manager.perform_district_clustering(district_df, n_clusters=5),
-        'anomaly_detection': ml_manager.detect_anomalies(district_df),
-        'pca_analysis': ml_manager.perform_pca_analysis(district_df)
+        'literacy_prediction': ml_manager.train_literacy_predictor(integrated_df),
+        'internet_prediction': ml_manager.train_internet_predictor(integrated_df),
+        'sanitation_classification': ml_manager.train_sanitation_classifier(integrated_df),
+        'district_clustering': ml_manager.perform_district_clustering(integrated_df, n_clusters=5),
+        'anomaly_detection': ml_manager.detect_anomalies(integrated_df),
+        'pca_analysis': ml_manager.perform_pca_analysis(integrated_df)
     }
+    
+    # Add housing-specific models if housing data is available
+    if housing_df is not None:
+        results.update({
+            'housing_quality_prediction': ml_manager.train_housing_quality_predictor(integrated_df),
+            'asset_ownership_classification': ml_manager.train_asset_ownership_classifier(integrated_df),
+            'housing_clustering': ml_manager.perform_housing_clustering(integrated_df),
+            'infrastructure_score_prediction': ml_manager.train_infrastructure_predictor(integrated_df)
+        })
     
     return results, ml_manager

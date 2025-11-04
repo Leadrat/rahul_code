@@ -1,5 +1,14 @@
 # Quick Start Guide
 
+AIzaSyDYGB9M-YnHaSYbLH-E_2FKViIx2rNmelc
+
+
+Add feature in existing project to get local dataset (csv files) context by gemini llm through api key and respond to user prompt (relevant to the dataset) using system promt. 
+create system prompt for each prompt and ask the model to answer.
+save the system promts and user prompt for each query in neon database server 'postgresql://neondb_owner:npg_QaDL2XEYuId8@ep-jolly-sound-a42vi9ji-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'.
+Add a feature to generate summary for whole conversation using data saved in database for that session.
+Also add ui for the chat bot in the frontend.
+
 ## First Time Setup
 
 1. **Run the setup script**:

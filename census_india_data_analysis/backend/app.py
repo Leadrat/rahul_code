@@ -5,7 +5,7 @@ Provides REST API endpoints for:
 - Interactive Q&A using spaCy NLP
 - Chart data generation
 """
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 import pandas as pd
 import numpy as np
@@ -26,29 +26,40 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.data_analysis import load_datasets, compute_district_metrics
 from src.ml_models import MLModelManager, train_all_models
+from backend.gemini_chatbot import GeminiChatbot
 
 app = Flask(__name__)
 CORS(app)
+
+# Configuration
+GEMINI_API_KEY = "AIzaSyDYGB9M-YnHaSYbLH-E_2FKViIx2rNmelc"
+NEON_DB_URL = "postgresql://neondb_owner:npg_QaDL2XEYuId8@ep-jolly-sound-a42vi9ji-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require"
 
 # Global data storage
 data_bundle = None
 district_metrics = None
 ml_manager = None
 ml_results = None
+gemini_chatbot = None
 
 def initialize_data():
     """Load datasets on startup."""
-    global data_bundle, district_metrics, ml_manager, ml_results
+    global data_bundle, district_metrics, ml_manager, ml_results, gemini_chatbot
     try:
         data_dir = Path(__file__).parent.parent
         data_bundle = load_datasets(data_dir)
         district_metrics = compute_district_metrics(data_bundle.district)
         print("✓ Data loaded successfully")
         
-        # Train ML models
-        print("⏳ Training ML models...")
-        ml_results, ml_manager = train_all_models(district_metrics)
-        print("✓ ML models trained successfully")
+        # Train enhanced ML models with housing data
+        print("⏳ Training enhanced ML models with housing data integration...")
+        ml_results, ml_manager = train_all_models(district_metrics, data_bundle.housing)
+        print("✓ Enhanced ML models trained successfully with housing integration")
+        
+        # Initialize Gemini Chatbot with local data
+        print("⏳ Initializing Gemini Chatbot with local data integration...")
+        gemini_chatbot = GeminiChatbot(GEMINI_API_KEY, NEON_DB_URL, data_dir)
+        print("✓ Gemini Chatbot initialized successfully with local data")
     except Exception as e:
         print(f"✗ Error loading data: {e}")
         raise
@@ -586,6 +597,259 @@ def get_cluster_comparison():
         }
         
         return jsonify(comparison)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== GEMINI CHATBOT ENDPOINTS ====================
+
+@app.route('/api/chatbot/session', methods=['POST'])
+def create_chat_session():
+    """Create a new chat session."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        session_id = gemini_chatbot.create_session()
+        return jsonify({
+            'success': True,
+            'session_id': session_id
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/chat', methods=['POST'])
+def chat_with_bot():
+    """Send a message to the chatbot."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        data = request.get_json()
+        session_id = data.get('session_id')
+        user_prompt = data.get('message', '').strip()
+        
+        if not session_id:
+            return jsonify({'error': 'session_id is required'}), 400
+        
+        if not user_prompt:
+            return jsonify({'error': 'message is required'}), 400
+        
+        result = gemini_chatbot.chat(session_id, user_prompt)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/history/<session_id>', methods=['GET'])
+def get_chat_history(session_id):
+    """Get conversation history for a session."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        history = gemini_chatbot.get_conversation_history(session_id)
+        return jsonify({
+            'success': True,
+            'history': history,
+            'session_id': session_id
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/summary/<session_id>', methods=['POST'])
+def generate_summary(session_id):
+    """Generate a summary of the conversation."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        result = gemini_chatbot.generate_conversation_summary(session_id)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/summary/<session_id>', methods=['GET'])
+def get_summary(session_id):
+    """Get the most recent summary for a session."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        summary = gemini_chatbot.get_session_summary(session_id)
+        if summary:
+            return jsonify({
+                'success': True,
+                'summary': summary,
+                'session_id': session_id
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'No summary found for this session'
+            }), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/stream', methods=['POST'])
+def chat_stream():
+    """Send a message to the chatbot with streaming response."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        data = request.get_json()
+        session_id = data.get('session_id')
+        user_prompt = data.get('message', '').strip()
+        
+        if not session_id:
+            return jsonify({'error': 'session_id is required'}), 400
+        
+        if not user_prompt:
+            return jsonify({'error': 'message is required'}), 400
+        
+        def generate():
+            for chunk in gemini_chatbot.chat_stream(session_id, user_prompt):
+                yield f"data: {json.dumps(chunk)}\n\n"
+        
+        return Response(generate(), mimetype='text/plain')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/sessions', methods=['GET'])
+def get_all_sessions():
+    """Get all chat sessions."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        sessions = gemini_chatbot.get_all_sessions()
+        return jsonify({
+            'success': True,
+            'sessions': sessions
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/sessions/<session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    """Delete a chat session."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        success = gemini_chatbot.delete_session(session_id)
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Session deleted successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to delete session'
+            }), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== ENHANCED CHATBOT ENDPOINTS ====================
+
+@app.route('/api/chatbot/data-summary', methods=['GET'])
+def get_chatbot_data_summary():
+    """Get comprehensive summary of loaded data and ML models for chatbot."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        summary = gemini_chatbot.get_data_summary()
+        return jsonify(summary)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/query-data', methods=['POST'])
+def query_chatbot_data():
+    """Query specific data through the chatbot's data interface."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        data = request.get_json()
+        query_type = data.get('query_type')
+        params = data.get('params', {})
+        
+        if not query_type:
+            return jsonify({'error': 'query_type is required'}), 400
+        
+        result = gemini_chatbot.query_specific_data(query_type, **params)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/ml-models', methods=['GET'])
+def get_chatbot_ml_models():
+    """Get information about available ML models in the chatbot."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        model_info = gemini_chatbot.get_ml_model_info()
+        return jsonify(model_info)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/predict', methods=['POST'])
+def chatbot_predict():
+    """Make ML predictions through the chatbot interface."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        data = request.get_json()
+        model_type = data.get('model_type')
+        features = data.get('features', {})
+        
+        if not model_type:
+            return jsonify({'error': 'model_type is required'}), 400
+        
+        result = gemini_chatbot.query_specific_data('ml_prediction', model_type=model_type, features=features)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/state-info/<state_name>', methods=['GET'])
+def get_chatbot_state_info(state_name):
+    """Get state information through the chatbot's data interface."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        result = gemini_chatbot.query_specific_data('state_stats', state_name=state_name)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/district-info/<district_name>', methods=['GET'])
+def get_chatbot_district_info(district_name):
+    """Get district information through the chatbot's data interface."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        result = gemini_chatbot.query_specific_data('district_stats', district_name=district_name)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/top-states', methods=['GET'])
+def get_chatbot_top_states():
+    """Get top states by various metrics through the chatbot interface."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        metric = request.args.get('metric', 'population')
+        limit = int(request.args.get('limit', 10))
+        
+        result = gemini_chatbot.query_specific_data('top_states', metric=metric, limit=limit)
+        return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
