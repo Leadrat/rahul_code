@@ -12,7 +12,9 @@
 ## ✨ Features
 
 ### 🧠 Intelligent AI Responses
-- Powered by Google's Gemini Pro model
+- Powered by Google's Gemini 2.5 Flash model
+- **Real-time streaming responses** with visual feedback ⚡
+- **"Thinking" indicators** while AI prepares responses 🤔
 - Context-aware answers based on Census 2011 data
 - Dynamic system prompts for each query
 - Natural language understanding
@@ -20,7 +22,8 @@
 ### 💾 Complete Data Persistence
 - Stores all conversations in Neon PostgreSQL
 - Saves user prompts, system prompts, and AI responses
-- Session management with unique IDs
+- **Full session management** with create/delete operations 📁
+- **Session history sidebar** with previous conversations
 - Timestamp tracking for all interactions
 
 ### 📊 AI-Powered Summaries
@@ -31,8 +34,10 @@
 
 ### 🎨 Modern User Interface
 - Clean, responsive React design
-- Real-time message updates
-- Typing indicators
+- **Real-time streaming responses** ⚡
+- **Session management** with history sidebar 📁
+- **Create new sessions** on demand
+- **Delete old sessions** with confirmation
 - Quick suggestion buttons
 - Beautiful gradient themes
 - Mobile-friendly layout

@@ -5,7 +5,7 @@ Provides REST API endpoints for:
 - Interactive Q&A using spaCy NLP
 - Chart data generation
 """
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 import pandas as pd
 import numpy as np
@@ -686,6 +686,67 @@ def get_summary(session_id):
                 'success': False,
                 'error': 'No summary found for this session'
             }), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/stream', methods=['POST'])
+def chat_stream():
+    """Send a message to the chatbot with streaming response."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        data = request.get_json()
+        session_id = data.get('session_id')
+        user_prompt = data.get('message', '').strip()
+        
+        if not session_id:
+            return jsonify({'error': 'session_id is required'}), 400
+        
+        if not user_prompt:
+            return jsonify({'error': 'message is required'}), 400
+        
+        def generate():
+            for chunk in gemini_chatbot.chat_stream(session_id, user_prompt):
+                yield f"data: {json.dumps(chunk)}\n\n"
+        
+        return Response(generate(), mimetype='text/plain')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/sessions', methods=['GET'])
+def get_all_sessions():
+    """Get all chat sessions."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        sessions = gemini_chatbot.get_all_sessions()
+        return jsonify({
+            'success': True,
+            'sessions': sessions
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/chatbot/sessions/<session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    """Delete a chat session."""
+    try:
+        if gemini_chatbot is None:
+            return jsonify({'error': 'Chatbot not initialized'}), 503
+        
+        success = gemini_chatbot.delete_session(session_id)
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Session deleted successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to delete session'
+            }), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

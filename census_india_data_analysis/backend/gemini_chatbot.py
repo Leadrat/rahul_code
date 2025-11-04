@@ -200,6 +200,49 @@ Provide a comprehensive, accurate answer based on the census data context."""
                 'session_id': session_id
             }
     
+    def chat_stream(self, session_id: str, user_prompt: str):
+        """Process user prompt and generate streaming response using Gemini."""
+        try:
+            # Create system prompt
+            system_prompt = self._create_system_prompt(user_prompt)
+            
+            # Generate streaming response using Gemini
+            response = self.model.generate_content(system_prompt, stream=True)
+            
+            full_response = ""
+            for chunk in response:
+                if chunk.text:
+                    full_response += chunk.text
+                    yield {
+                        'success': True,
+                        'chunk': chunk.text,
+                        'session_id': session_id,
+                        'done': False
+                    }
+            
+            # Save complete conversation to database
+            self._save_conversation(session_id, user_prompt, system_prompt, full_response)
+            
+            # Update session activity
+            self._update_session_activity(session_id)
+            
+            # Send final chunk to indicate completion
+            yield {
+                'success': True,
+                'chunk': '',
+                'session_id': session_id,
+                'done': True,
+                'full_response': full_response
+            }
+            
+        except Exception as e:
+            yield {
+                'success': False,
+                'error': str(e),
+                'session_id': session_id,
+                'done': True
+            }
+    
     def _save_conversation(self, session_id: str, user_prompt: str, 
                           system_prompt: str, ai_response: str):
         """Save conversation to database."""
@@ -352,3 +395,52 @@ Format the summary in a clear, structured way."""
         except Exception as e:
             print(f"Error retrieving summary: {e}")
             return None
+    
+    def get_all_sessions(self) -> List[Dict]:
+        """Retrieve all chat sessions with basic info."""
+        try:
+            conn = psycopg2.connect(self.db_url)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cursor.execute(
+                """SELECT 
+                    cs.session_id,
+                    cs.created_at,
+                    cs.last_activity,
+                    COUNT(c.id) as message_count,
+                    MIN(c.user_prompt) as first_message
+                   FROM chat_sessions cs
+                   LEFT JOIN conversations c ON cs.session_id = c.session_id
+                   GROUP BY cs.session_id, cs.created_at, cs.last_activity
+                   ORDER BY cs.last_activity DESC
+                   LIMIT 50"""
+            )
+            
+            sessions = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            return [dict(session) for session in sessions]
+        except Exception as e:
+            print(f"Error retrieving sessions: {e}")
+            return []
+    
+    def delete_session(self, session_id: str) -> bool:
+        """Delete a session and all its conversations."""
+        try:
+            conn = psycopg2.connect(self.db_url)
+            cursor = conn.cursor()
+            
+            # Delete in order due to foreign key constraints
+            cursor.execute("DELETE FROM conversation_summaries WHERE session_id = %s", (session_id,))
+            cursor.execute("DELETE FROM conversations WHERE session_id = %s", (session_id,))
+            cursor.execute("DELETE FROM chat_sessions WHERE session_id = %s", (session_id,))
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return True
+        except Exception as e:
+            print(f"Error deleting session: {e}")
+            return False

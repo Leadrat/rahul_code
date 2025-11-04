@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, Bot, User, Loader, Sparkles, FileText } from 'lucide-react';
+import { Send, Bot, User, Loader, Sparkles, FileText, Plus, History, Trash2, MessageSquare } from 'lucide-react';
 import './Chatbot.css';
 
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -9,14 +9,23 @@ const Chatbot = () => {
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summary, setSummary] = useState(null);
+  const [sessions, setSessions] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [loadingStates, setLoadingStates] = useState({
+    sessions: false,
+    history: false,
+    deletion: false
+  });
   const messagesEndRef = useRef(null);
 
   // Initialize chat session on component mount
   useEffect(() => {
     initializeSession();
+    loadSessions();
   }, []);
 
   // Auto-scroll to bottom when new messages arrive
@@ -56,7 +65,7 @@ const Chatbot = () => {
   const sendMessage = async (e) => {
     e.preventDefault();
     
-    if (!inputMessage.trim() || !sessionId || isLoading) return;
+    if (!inputMessage.trim() || !sessionId || isStreaming || isThinking) return;
 
     const userMessage = {
       type: 'user',
@@ -65,40 +74,210 @@ const Chatbot = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentMessage = inputMessage;
     setInputMessage('');
-    setIsLoading(true);
+    setIsThinking(true);
+
+    // Add thinking indicator
+    const thinkingMessageId = Date.now();
+    const thinkingMessage = {
+      id: thinkingMessageId,
+      type: 'bot',
+      content: '',
+      timestamp: new Date(),
+      isThinking: true
+    };
+    setMessages(prev => [...prev, thinkingMessage]);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/chatbot/chat`, {
-        session_id: sessionId,
-        message: inputMessage
+      const response = await fetch(`${API_BASE_URL}/chatbot/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          message: currentMessage
+        })
       });
 
-      if (response.data.success) {
-        const botMessage = {
-          type: 'bot',
-          content: response.data.response,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, botMessage]);
-      } else {
-        const errorMessage = {
-          type: 'error',
-          content: `Error: ${response.data.error}`,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, errorMessage]);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let firstChunk = true;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.success && data.chunk) {
+                // On first chunk, replace thinking with streaming
+                if (firstChunk) {
+                  setIsThinking(false);
+                  setIsStreaming(true);
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === thinkingMessageId 
+                      ? { 
+                          ...msg, 
+                          content: data.chunk,
+                          isThinking: false,
+                          isStreaming: true
+                        }
+                      : msg
+                  ));
+                  firstChunk = false;
+                } else {
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === thinkingMessageId 
+                      ? { ...msg, content: msg.content + data.chunk }
+                      : msg
+                  ));
+                }
+              }
+              
+              if (data.done) {
+                setMessages(prev => prev.map(msg => 
+                  msg.id === thinkingMessageId 
+                    ? { ...msg, isStreaming: false }
+                    : msg
+                ));
+                setIsStreaming(false);
+                loadSessions(); // Refresh sessions after new message
+                return;
+              }
+              
+              if (!data.success) {
+                throw new Error(data.error);
+              }
+            } catch (parseError) {
+              console.error('Error parsing stream data:', parseError);
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      const errorMessage = {
-        type: 'error',
-        content: 'Failed to get response. Please try again.',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => prev.map(msg => 
+        msg.id === thinkingMessageId 
+          ? { 
+              ...msg, 
+              content: 'Failed to get response. Please try again.',
+              type: 'error',
+              isStreaming: false,
+              isThinking: false
+            }
+          : msg
+      ));
     } finally {
-      setIsLoading(false);
+      setIsStreaming(false);
+      setIsThinking(false);
+    }
+  };
+
+  const loadSessions = async () => {
+    setLoadingStates(prev => ({ ...prev, sessions: true }));
+    try {
+      const response = await axios.get(`${API_BASE_URL}/chatbot/sessions`);
+      if (response.data.success) {
+        setSessions(response.data.sessions);
+      }
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+    } finally {
+      setLoadingStates(prev => ({ ...prev, sessions: false }));
+    }
+  };
+
+  const createNewSession = async () => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/chatbot/session`);
+      if (response.data.success) {
+        setSessionId(response.data.session_id);
+        setMessages([
+          {
+            type: 'bot',
+            content: 'Hello! I\'m your Census 2011 India data assistant powered by Gemini AI. I can help you explore demographic data, housing statistics, literacy rates, and much more. What would you like to know?',
+            timestamp: new Date()
+          }
+        ]);
+        setSummary(null);
+        loadSessions();
+      }
+    } catch (error) {
+      console.error('Error creating new session:', error);
+    }
+  };
+
+  const loadSession = async (selectedSessionId) => {
+    setLoadingStates(prev => ({ ...prev, history: true }));
+    try {
+      setSessionId(selectedSessionId);
+      
+      // Load conversation history
+      const historyResponse = await axios.get(`${API_BASE_URL}/chatbot/history/${selectedSessionId}`);
+      if (historyResponse.data.success) {
+        const history = historyResponse.data.history.map(item => [
+          {
+            type: 'user',
+            content: item.user_prompt,
+            timestamp: new Date(item.created_at)
+          },
+          {
+            type: 'bot',
+            content: item.ai_response,
+            timestamp: new Date(item.created_at)
+          }
+        ]).flat();
+        
+        setMessages(history);
+      }
+      
+      // Try to load existing summary
+      try {
+        const summaryResponse = await axios.get(`${API_BASE_URL}/chatbot/summary/${selectedSessionId}`);
+        if (summaryResponse.data.success) {
+          setSummary(summaryResponse.data.summary.summary);
+        }
+      } catch (summaryError) {
+        // No summary exists yet, that's okay
+        setSummary(null);
+      }
+      
+      setShowHistory(false);
+    } catch (error) {
+      console.error('Error loading session:', error);
+    } finally {
+      setLoadingStates(prev => ({ ...prev, history: false }));
+    }
+  };
+
+  const deleteSession = async (sessionIdToDelete) => {
+    if (!window.confirm('Are you sure you want to delete this session?')) return;
+    
+    setLoadingStates(prev => ({ ...prev, deletion: true }));
+    try {
+      await axios.delete(`${API_BASE_URL}/chatbot/sessions/${sessionIdToDelete}`);
+      
+      // If we're deleting the current session, create a new one
+      if (sessionIdToDelete === sessionId) {
+        await createNewSession();
+      }
+      
+      loadSessions();
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      alert('Failed to delete session. Please try again.');
+    } finally {
+      setLoadingStates(prev => ({ ...prev, deletion: false }));
     }
   };
 
@@ -136,27 +315,105 @@ const Chatbot = () => {
           <Bot className="header-icon" size={28} />
           <div>
             <h2>Census 2011 AI Assistant</h2>
-            <p>Powered by Gemini AI</p>
+            <p>Powered by Gemini 2.5 Flash</p>
           </div>
         </div>
-        <button 
-          className="summary-button"
-          onClick={generateSummary}
-          disabled={isSummarizing || messages.length <= 1}
-          title="Generate conversation summary"
-        >
-          {isSummarizing ? (
-            <Loader className="spinning" size={20} />
-          ) : (
-            <FileText size={20} />
-          )}
-          Summary
-        </button>
+        <div className="header-actions">
+          <button 
+            className="action-button"
+            onClick={() => setShowHistory(!showHistory)}
+            title="Session history"
+            disabled={loadingStates.sessions}
+          >
+            {loadingStates.sessions ? (
+              <Loader className="spinning" size={20} />
+            ) : (
+              <History size={20} />
+            )}
+            History
+          </button>
+          <button 
+            className="action-button"
+            onClick={createNewSession}
+            title="Start new session"
+          >
+            <Plus size={20} />
+            New
+          </button>
+          <button 
+            className="action-button"
+            onClick={generateSummary}
+            disabled={isSummarizing || messages.length <= 1}
+            title="Generate conversation summary"
+          >
+            {isSummarizing ? (
+              <Loader className="spinning" size={20} />
+            ) : (
+              <FileText size={20} />
+            )}
+            Summary
+          </button>
+        </div>
       </div>
+
+      {showHistory && (
+        <div className="history-sidebar">
+          <div className="history-header">
+            <h3>Previous Sessions</h3>
+            <button onClick={() => setShowHistory(false)}>✕</button>
+          </div>
+          <div className="history-list">
+            {loadingStates.history && (
+              <div className="loading-sessions">
+                <Loader className="spinning" size={24} />
+                <span>Loading session...</span>
+              </div>
+            )}
+            {sessions.map((session) => (
+              <div key={session.session_id} className="history-item">
+                <div 
+                  className="history-content"
+                  onClick={() => !loadingStates.history && loadSession(session.session_id)}
+                >
+                  <div className="history-title">
+                    <MessageSquare size={16} />
+                    {session.first_message ? 
+                      session.first_message.substring(0, 50) + '...' : 
+                      'New Session'
+                    }
+                  </div>
+                  <div className="history-meta">
+                    <span>{session.message_count} messages</span>
+                    <span>{new Date(session.last_activity).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <button 
+                  className="delete-session"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteSession(session.session_id);
+                  }}
+                  title="Delete session"
+                  disabled={loadingStates.deletion}
+                >
+                  {loadingStates.deletion ? (
+                    <Loader className="spinning" size={16} />
+                  ) : (
+                    <Trash2 size={16} />
+                  )}
+                </button>
+              </div>
+            ))}
+            {sessions.length === 0 && !loadingStates.sessions && (
+              <div className="no-sessions">No previous sessions</div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="chatbot-messages">
         {messages.map((message, index) => (
-          <div key={index} className={`message ${message.type}-message`}>
+          <div key={message.id || index} className={`message ${message.type}-message ${message.isStreaming ? 'streaming' : ''} ${message.isThinking ? 'thinking' : ''}`}>
             <div className="message-icon">
               {message.type === 'user' ? (
                 <User size={20} />
@@ -167,7 +424,23 @@ const Chatbot = () => {
               )}
             </div>
             <div className="message-content">
-              <div className="message-text">{message.content}</div>
+              <div className="message-text">
+                {message.isThinking ? (
+                  <div className="thinking-indicator">
+                    <span className="thinking-text">Thinking</span>
+                    <div className="thinking-dots">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {message.content}
+                    {message.isStreaming && <span className="streaming-cursor">|</span>}
+                  </>
+                )}
+              </div>
               <div className="message-timestamp">
                 {formatTimestamp(message.timestamp)}
               </div>
@@ -175,20 +448,7 @@ const Chatbot = () => {
           </div>
         ))}
         
-        {isLoading && (
-          <div className="message bot-message">
-            <div className="message-icon">
-              <Bot size={20} />
-            </div>
-            <div className="message-content">
-              <div className="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </div>
-          </div>
-        )}
+
         
         <div ref={messagesEndRef} />
       </div>
@@ -214,19 +474,23 @@ const Chatbot = () => {
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           placeholder="Ask me anything about Census 2011 India data..."
-          disabled={isLoading || !sessionId}
+          disabled={isStreaming || isThinking || !sessionId}
           className="chatbot-input"
         />
         <button 
           type="submit" 
-          disabled={isLoading || !inputMessage.trim() || !sessionId}
+          disabled={isStreaming || isThinking || !inputMessage.trim() || !sessionId}
           className="send-button"
+          title="Send message"
         >
-          {isLoading ? (
-            <Loader className="spinning" size={20} />
-          ) : (
-            <Send size={20} />
-          )}
+          <div className="send-button-content">
+            {isStreaming || isThinking ? (
+              <Loader className="spinning" size={20} />
+            ) : (
+              <Send size={20} />
+            )}
+            <span className="send-button-text">Send</span>
+          </div>
         </button>
       </form>
 
