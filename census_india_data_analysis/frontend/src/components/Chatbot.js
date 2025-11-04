@@ -59,6 +59,20 @@ const Chatbot = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Handle keyboard events for modal
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && showHistory) {
+        setShowHistory(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showHistory]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -390,56 +404,71 @@ const Chatbot = () => {
       </div>
 
       {showHistory && (
-        <div className="history-sidebar">
-          <div className="history-header">
-            <h3>Previous Sessions</h3>
-            <button onClick={() => setShowHistory(false)}>✕</button>
-          </div>
-          <div className="history-list">
-            {loadingStates.history && (
-              <div className="loading-sessions">
-                <Loader className="spinning" size={24} />
-                <span>Loading session...</span>
+        <div className="history-modal-overlay" onClick={() => setShowHistory(false)}>
+          <div className="history-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="history-modal-header">
+              <div className="history-modal-title">
+                <History size={24} />
+                <h3>Previous Sessions</h3>
               </div>
-            )}
-            {sessions.map((session) => (
-              <div key={session.session_id} className="history-item">
-                <div 
-                  className="history-content"
-                  onClick={() => !loadingStates.history && loadSession(session.session_id)}
-                >
-                  <div className="history-title">
-                    <MessageSquare size={16} />
-                    {session.first_message ? 
-                      session.first_message.substring(0, 50) + '...' : 
-                      'New Session'
-                    }
-                  </div>
-                  <div className="history-meta">
-                    <span>{session.message_count} messages</span>
-                    <span>{new Date(session.last_activity).toLocaleDateString()}</span>
-                  </div>
+              <button 
+                className="history-modal-close"
+                onClick={() => setShowHistory(false)}
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="history-modal-content">
+              {loadingStates.history && (
+                <div className="loading-sessions">
+                  <Loader className="spinning" size={24} />
+                  <span>Loading session...</span>
                 </div>
-                <button 
-                  className="delete-session"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteSession(session.session_id);
-                  }}
-                  title="Delete session"
-                  disabled={loadingStates.deletion}
-                >
-                  {loadingStates.deletion ? (
-                    <Loader className="spinning" size={16} />
-                  ) : (
-                    <Trash2 size={16} />
-                  )}
-                </button>
-              </div>
-            ))}
-            {sessions.length === 0 && !loadingStates.sessions && (
-              <div className="no-sessions">No previous sessions</div>
-            )}
+              )}
+              {sessions.map((session) => (
+                <div key={session.session_id} className="history-item">
+                  <div 
+                    className="history-content"
+                    onClick={() => !loadingStates.history && loadSession(session.session_id)}
+                  >
+                    <div className="history-title">
+                      <MessageSquare size={16} />
+                      {session.first_message ? 
+                        session.first_message.substring(0, 60) + '...' : 
+                        'New Session'
+                      }
+                    </div>
+                    <div className="history-meta">
+                      <span>{session.message_count} messages</span>
+                      <span>{new Date(session.last_activity).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <button 
+                    className="delete-session"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSession(session.session_id);
+                    }}
+                    title="Delete session"
+                    disabled={loadingStates.deletion}
+                  >
+                    {loadingStates.deletion ? (
+                      <Loader className="spinning" size={16} />
+                    ) : (
+                      <Trash2 size={16} />
+                    )}
+                  </button>
+                </div>
+              ))}
+              {sessions.length === 0 && !loadingStates.sessions && (
+                <div className="no-sessions">
+                  <MessageSquare size={48} className="no-sessions-icon" />
+                  <h4>No Previous Sessions</h4>
+                  <p>Start a conversation to create your first session!</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
