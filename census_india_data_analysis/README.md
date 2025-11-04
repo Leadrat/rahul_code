@@ -36,11 +36,13 @@ This project provides a complete solution for analyzing Census 2011 India data w
 - **District Clustering** based on socioeconomic indicators
 - **Housing Quality Assessment** using infrastructure data
 
-### 💬 **AI-Powered Chatbot**
+### 💬 **Enhanced AI Chatbot with Local Data Integration**
 - **Real-time Streaming Responses** with Google Gemini 2.5 Flash
-- **Context-Aware Q&A** about census data
-- **Session Management** with conversation history
-- **AI-Generated Summaries** of conversations
+- **Local Data Integration** - Direct access to Census 2011 datasets
+- **ML Model Integration** - 5 trained models for predictions and analysis
+- **Strict Data Boundaries** - Responses restricted to Census 2011 data only
+- **Context-Aware Q&A** with intelligent question classification
+- **Session Management** with conversation history and summaries
 - **Professional UI** with modal dialogs and animations
 
 ### 🎨 **Modern User Interface**
@@ -218,14 +220,30 @@ census-india-data-analysis/
 - **Modal Dialogs** - Professional session management
 - **Full Viewport** - Immersive chat experience
 
-### **Example Questions**
+### **Enhanced Chatbot Capabilities**
+
+#### **Data-Driven Responses**
+- All responses based exclusively on Census 2011 India data
+- Real-time calculations from local datasets
+- ML model predictions and insights
+- Strict data boundary enforcement
+
+#### **Example Questions**
 ```
 💬 "What is the total population of India according to Census 2011?"
 💬 "Which states have the highest literacy rates?"
 💬 "Tell me about internet penetration in rural vs urban areas"
-💬 "What is the sex ratio across different states?"
-💬 "Compare worker participation rates between male and female"
+💬 "Predict literacy rate for a district with 60% urbanization"
+💬 "Which districts are anomalies in demographic patterns?"
+💬 "Compare sanitation facilities across different states"
+💬 "What are the ML model performance metrics?"
 ```
+
+#### **Intelligent Features**
+- **Question Classification**: Automatically categorizes queries
+- **Contextual Prompts**: Tailored responses based on question type
+- **ML Integration**: Access to trained models for predictions
+- **Data Validation**: All statistics verified against local data
 
 ---
 
@@ -243,17 +261,29 @@ census-india-data-analysis/
 - **Clusters:** 5 distinct development categories
 - **Use Case:** Identify similar districts for targeted programs
 
-### **3. Population Growth Forecasting**
-- **Algorithm:** Time Series Analysis (ARIMA)
-- **Features:** Historical population trends
-- **Accuracy:** 90%+ for short-term predictions
-- **Use Case:** Urban planning and resource allocation
-
-### **4. Housing Quality Assessment**
-- **Algorithm:** Support Vector Machine (SVM)
-- **Features:** Infrastructure and asset ownership
-- **Categories:** Poor, Average, Good, Excellent
+### **3. Housing Quality Predictor**
+- **Algorithm:** Random Forest Regression
+- **Features:** Construction materials, utilities, demographics
+- **Accuracy:** 85%+ R² score
 - **Use Case:** Housing development prioritization
+
+### **4. Asset Ownership Classifier**
+- **Algorithm:** Random Forest Classification
+- **Features:** Digital assets, housing quality, infrastructure
+- **Categories:** Low, Medium, High ownership levels
+- **Use Case:** Digital divide analysis and economic planning
+
+### **5. Infrastructure Score Predictor**
+- **Algorithm:** Random Forest Regression
+- **Features:** Water, sanitation, electricity access
+- **Accuracy:** 82%+ R² score
+- **Use Case:** Infrastructure development planning
+
+### **6. Housing-based District Clustering**
+- **Algorithm:** K-Means Clustering
+- **Features:** Housing quality, construction, asset ownership
+- **Clusters:** 4 housing development categories
+- **Use Case:** Targeted housing development programs
 
 ---
 
